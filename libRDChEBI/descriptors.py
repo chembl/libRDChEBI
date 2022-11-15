@@ -22,7 +22,7 @@ def get_net_charge(molfile):
     return sum(charges)
 
 
-def get_small_mol_formula(mol):
+def get_component_formula(mol):
     atoms_dict = {}
     for at in mol.GetAtoms():
         if at.GetSymbol().startswith("R"):
@@ -86,7 +86,7 @@ def get_molecular_formula(molfile):
             atoms_in_sgroups.append(atm)
 
         formula = ""
-        formula = get_small_mol_formula(sub_mol)
+        formula = get_component_formula(sub_mol)
 
         if sg.HasProp("LABEL"):
             label = sg.GetProp("LABEL")
@@ -101,7 +101,7 @@ def get_molecular_formula(molfile):
     for atm in atoms_in_sgroups:
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
-    rest_formula = get_small_mol_formula(rwmol)
+    rest_formula = get_component_formula(rwmol)
 
     if rest_formula:
         formulas.append(rest_formula)
