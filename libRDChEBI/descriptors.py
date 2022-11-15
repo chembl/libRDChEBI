@@ -1,8 +1,6 @@
 from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_valences
 from rdkit.Chem import Descriptors
 from rdkit import Chem
-import ctfile
-import io
 
 
 def drop_isotopes_info(mol):
@@ -24,21 +22,13 @@ def get_net_charge(molfile):
     return sum(charges)
 
 
-def get_small_mol_formula(mol, ctf):
+def get_small_mol_formula(mol):
     atoms_dict = {}
-    for rd_at in mol.GetAtoms():
-        idx = rd_at.GetIdx()
-        at = ctf.atoms[idx]
-        if at.atom_symbol[0] == "R" or rd_at.GetSymbol().startswith("R"):
-            if atoms_dict.get("R"):
-                atoms_dict["R"] += 1
-            else:
-                atoms_dict["R"] = 1
+    for at in mol.GetAtoms():
+        if atoms_dict.get(at.GetSymbol()):
+            atoms_dict[at.GetSymbol()] += 1
         else:
-            if atoms_dict.get(rd_at.GetSymbol()):
-                atoms_dict[rd_at.GetSymbol()] += 1
-            else:
-                atoms_dict[rd_at.GetSymbol()] = 1
+            atoms_dict[at.GetSymbol()] = 1
 
     hs = 0
     for at in mol.GetAtoms():
@@ -76,24 +66,22 @@ def get_small_mol_formula(mol, ctf):
 def get_molecular_formula(molfile):
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
-    f = io.StringIO(molfile)
-    ctf = ctfile.load(f)
-
     rwmol = Chem.RWMol(mol)
+
     sgroups = Chem.GetMolSubstanceGroups(rwmol)
 
     formulas = []
     atoms_in_sgroups = []
     for sg in sgroups:
         sub_mol = Chem.RWMol()
-        # we only need the atoms (with calculated valences) in SGroups for the formula
+        # we only need the atoms (with their valences) in SGroups for the formula
         for atm in sg.GetAtoms():
             atom = rwmol.GetAtomWithIdx(atm)
             sub_mol.AddAtom(atom)
             atoms_in_sgroups.append(atm)
 
         formula = ""
-        formula = get_small_mol_formula(sub_mol, ctf)
+        formula = get_small_mol_formula(sub_mol)
 
         if sg.HasProp("LABEL"):
             label = sg.GetProp("LABEL")
@@ -108,7 +96,7 @@ def get_molecular_formula(molfile):
     for atm in atoms_in_sgroups:
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
-    rest_formula = get_small_mol_formula(rwmol, ctf)
+    rest_formula = get_small_mol_formula(rwmol)
 
     if rest_formula:
         formulas.append(rest_formula)
