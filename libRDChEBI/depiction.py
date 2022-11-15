@@ -1,7 +1,5 @@
 from chembl_structure_pipeline.standardizer import parse_molblock
 from rdkit.Chem.Draw import rdMolDraw2D
-import ctfile
-import io
 
 
 def depict(molfile, height=400, width=400):
