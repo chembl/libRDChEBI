@@ -19,7 +19,7 @@ def drop_isotopes_info(mol):
 
 
 def get_net_charge(molfile):
-    mol = Chem.MolFromMolBlock(molfile)
+    mol = parse_molblock(molfile)
     charges = [atm.GetFormalCharge() for atm in mol.GetAtoms()]
     return sum(charges)
 
@@ -48,15 +48,15 @@ def get_small_mol_formula(mol, ctf):
     if hs > 0:
         atoms_dict["H"] = hs
 
-    # '*' represent groups and do not appear in molecular formula
+    # '*' represent groups and do not appear in molecular formula in ChEBI
     if atoms_dict.get("*"):
         del atoms_dict["*"]
 
     # don't show the number of atoms if count is 1
     atom_str_counts = lambda x: f"{x}" if atoms_dict[x] == 1 else f"{x}{atoms_dict[x]}"
 
-    rr = ""
     # R, in ChEBI, represents a class of compounds so it should appear in the molecular formula
+    rr = ""
     if atoms_dict.get("R"):
         rr = atom_str_counts("R")
         del atoms_dict["R"]

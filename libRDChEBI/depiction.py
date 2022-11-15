@@ -7,16 +7,12 @@ import io
 def depict(molfile, height=400, width=400):
     mol = parse_molblock(molfile)
 
-    # hack
+    # hack to get back R's without 'M RGP' entry in molfile
     f = io.StringIO(molfile)
     ctf = ctfile.load(f)
-    r_idxs = []
-    for idx, at in enumerate(ctf.atoms):
-        if at.atom_symbol in ("R", "R#"):
-            r_idxs.append(idx)
-    for at in mol.GetAtoms():
-        if at.GetIdx() in r_idxs and at.GetSymbol() == "*":
-            at.SetProp("atomLabel", "R")
+    for at, rd_at in zip(ctf.atoms, mol.GetAtoms()):
+        if at.atom_symbol[0] == "R" and rd_at.GetSymbol() == "*":
+            rd_at.SetProp("atomLabel", "R")
     # hack
 
     d = rdMolDraw2D.MolDraw2DSVG(height, width)
