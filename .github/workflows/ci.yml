@@ -1,0 +1,32 @@
+name: CI
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags: '*'
+jobs:
+  test:
+    name: libRDChEBI (${{ matrix.os }}, ${{ matrix.python-version }}, ${{ matrix.chembl-structure-pipeline-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: ["3.8", "3.9", "3.10"]
+        chembl-structure-pipeline-version: ["1.1.0"]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest ctfile jsonpickle chembl_structure_pipeline==${{ matrix.chembl-structure-pipeline-version }}
+      - name: Test with pytest
+        run: |
+          pytest --doctest-modules
