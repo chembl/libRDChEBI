@@ -25,6 +25,11 @@ def get_net_charge(molfile):
 def get_small_mol_formula(mol):
     atoms_dict = {}
     for at in mol.GetAtoms():
+        if at.GetSymbol().startswith("R"):
+            if atoms_dict.get("R"):
+                atoms_dict["R"] += 1
+            else:
+                atoms_dict["R"] = 1
         if atoms_dict.get(at.GetSymbol()):
             atoms_dict[at.GetSymbol()] += 1
         else:
