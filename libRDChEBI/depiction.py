@@ -2,9 +2,9 @@ from chembl_structure_pipeline.standardizer import parse_molblock
 from rdkit.Chem.Draw import rdMolDraw2D
 
 
-def depict(molfile, height=400, width=400):
+def depict(molfile, width=400, height=400):
     mol = parse_molblock(molfile)
-    d = rdMolDraw2D.MolDraw2DSVG(height, width)
+    d = rdMolDraw2D.MolDraw2DSVG(width, height)
     draw_options = d.drawOptions()
     draw_options.minFontSize = 8
     draw_options.maxFontSize = 14
