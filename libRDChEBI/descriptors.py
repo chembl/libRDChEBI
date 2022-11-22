@@ -1,6 +1,20 @@
 from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_valences
 from rdkit.Chem import Descriptors
 from rdkit import Chem
+import re
+
+
+polymer_regex = re.compile(
+    r"^M  STY.+(SRU)|(MON)|(COP)|(CRO)|(ANY)", flags=re.MULTILINE
+)
+
+
+def has_r_group(molfile):
+    mol = parse_molblock(molfile)
+    for at in mol.GetAtoms():
+        if at.GetSymbol().startswith("R"):
+            return True
+    return False
 
 
 def drop_isotopes_info(mol):
@@ -22,7 +36,7 @@ def get_net_charge(molfile):
     return sum(charges)
 
 
-def get_component_formula(mol):
+def get_frag_formula(mol):
     atoms_dict = {}
     for at in mol.GetAtoms():
         if at.GetSymbol().startswith("R"):
@@ -30,11 +44,11 @@ def get_component_formula(mol):
                 atoms_dict["R"] += 1
             else:
                 atoms_dict["R"] = 1
-        if atoms_dict.get(at.GetSymbol()):
-            atoms_dict[at.GetSymbol()] += 1
         else:
-            atoms_dict[at.GetSymbol()] = 1
-
+            if atoms_dict.get(at.GetSymbol()):
+                atoms_dict[at.GetSymbol()] += 1
+            else:
+                atoms_dict[at.GetSymbol()] = 1
     hs = 0
     for at in mol.GetAtoms():
         if at.GetSymbol() == "H":
@@ -43,7 +57,7 @@ def get_component_formula(mol):
     if hs > 0:
         atoms_dict["H"] = hs
 
-    # '*' represent groups and do not appear in molecular formula in ChEBI
+    # '*' represent fragments and do not appear in molecular formula in ChEBI
     if atoms_dict.get("*"):
         del atoms_dict["*"]
 
@@ -51,9 +65,9 @@ def get_component_formula(mol):
     atom_str_counts = lambda x: f"{x}" if atoms_dict[x] == 1 else f"{x}{atoms_dict[x]}"
 
     # R, in ChEBI, represents a class of compounds so it should appear in the molecular formula
-    rr = ""
+    rs = ""
     if atoms_dict.get("R"):
-        rr = atom_str_counts("R")
+        rs = atom_str_counts("R")
         del atoms_dict["R"]
 
     # Hill order system: carbon, hydrogen, then all other elements in alphabetical order
@@ -62,22 +76,28 @@ def get_component_formula(mol):
         if atoms_dict.get(elem):
             molecular_formula += atom_str_counts(elem)
             del atoms_dict[elem]
-    for k in sorted(atoms_dict.keys()):
-        molecular_formula += atom_str_counts(k)
-    molecular_formula = molecular_formula + rr
+    for at in sorted(atoms_dict.keys()):
+        molecular_formula += atom_str_counts(at)
+    molecular_formula = molecular_formula + rs
     return molecular_formula
 
 
-def get_molecular_formula(molfile):
+def get_small_molecule_formula(molfile):
+    mol = parse_molblock(molfile)
+    mol = update_mol_valences(mol)
+    frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+    formulas = [get_frag_formula(frag) for frag in frags]
+    return ".".join(formulas)
+
+
+def get_polymer_formula(molfile):
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
     rwmol = Chem.RWMol(mol)
 
-    sgroups = Chem.GetMolSubstanceGroups(rwmol)
-
     formulas = []
     atoms_in_sgroups = []
-    for sg in sgroups:
+    for sg in Chem.GetMolSubstanceGroups(rwmol):
         sub_mol = Chem.RWMol()
         # we only need the atoms (with their valences) in SGroups for the formula
         for atm in sg.GetAtoms():
@@ -86,7 +106,7 @@ def get_molecular_formula(molfile):
             atoms_in_sgroups.append(atm)
 
         formula = ""
-        formula = get_component_formula(sub_mol)
+        formula = get_frag_formula(sub_mol)
 
         if sg.HasProp("LABEL"):
             label = sg.GetProp("LABEL")
@@ -101,12 +121,18 @@ def get_molecular_formula(molfile):
     for atm in atoms_in_sgroups:
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
-    rest_formula = get_component_formula(rwmol)
+    rest_formula = get_frag_formula(rwmol)
 
     if rest_formula:
         formulas.append(rest_formula)
-    mol_formula = ".".join(formulas)
-    return mol_formula
+    return ".".join(formulas)
+
+
+def get_molecular_formula(molfile):
+    if polymer_regex.search(molfile):
+        return get_polymer_formula(molfile)
+    else:
+        return get_small_molecule_formula(molfile)
 
 
 def get_avg_mass(molfile):

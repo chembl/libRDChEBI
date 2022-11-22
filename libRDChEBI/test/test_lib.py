@@ -1,8 +1,5 @@
 from .. import (
-    depict,
-    drop_isotopes_info,
     get_net_charge,
-    get_small_mol_formula,
     get_molecular_formula,
     get_avg_mass,
     get_monoisotopic_mass,
