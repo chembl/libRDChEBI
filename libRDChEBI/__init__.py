@@ -1,5 +1,6 @@
 from .registration import get_registration_hash
 from .depiction import depict
+from .modification import remove_hs
 from .descriptors import (
     get_smiles,
     get_avg_mass,
@@ -11,5 +12,5 @@ from .descriptors import (
 import rdkit
 
 rdkversion = rdkit.__version__.split(".")
-if rdkversion < ["2022", "09", "2"]:
+if rdkversion < ["2022", "09", "1"]:
     raise ValueError("need an RDKit version >= 2022.09.2")

@@ -1,12 +1,6 @@
 from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_valences
 from rdkit.Chem import Descriptors
 from rdkit import Chem
-import re
-
-
-polymer_regex = re.compile(
-    r"^M  STY.+(SRU)|(MON)|(COP)|(CRO)|(ANY)", flags=re.MULTILINE
-)
 
 
 def has_r_group(molfile):
@@ -82,19 +76,56 @@ def get_frag_formula(mol):
     return molecular_formula
 
 
-def get_small_molecule_formula(molfile):
-    mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
+def get_small_molecule_formula(mol):
     frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
     formulas = [get_frag_formula(frag) for frag in frags]
     return ".".join(formulas)
 
 
-def get_polymer_formula(molfile):
+def get_molecular_formula(molfile):
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
-    rwmol = Chem.RWMol(mol)
+    if Chem.GetMolSubstanceGroups(mol):
+        return get_polymer_formula(mol)
+    else:
+        return get_small_molecule_formula(mol)
 
+
+def get_avg_mass(molfile):
+    mol = parse_molblock(molfile)
+    mol = update_mol_valences(mol)
+    mol = drop_isotopes_info(mol)
+    if Chem.GetMolSubstanceGroups(mol):
+        return get_polymer_mass(mol, Descriptors.MolWt)
+    else:
+        return Descriptors.MolWt(mol)
+
+
+def get_monoisotopic_mass(molfile):
+    mol = parse_molblock(molfile)
+    mol = update_mol_valences(mol)
+    mol = drop_isotopes_info(mol)
+    if Chem.GetMolSubstanceGroups(mol):
+        return get_polymer_mass(mol, Descriptors.ExactMolWt)
+    else:
+        return Descriptors.ExactMolWt(mol)
+
+
+def get_inchi_and_key(molfile):
+    inchi = Chem.MolBlockToInchi(molfile)
+    inchi_key = Chem.InchiToInchiKey(inchi)
+    return inchi, inchi_key
+
+
+def get_smiles(molfile):
+    # we do apply RDKit chemistry model for SMILES generation
+    mol = Chem.MolFromMolBlock(molfile)
+    smiles = Chem.MolToSmiles(mol)
+    return smiles
+
+
+def get_polymer_formula(mol):
+    rwmol = Chem.RWMol(mol)
     formulas = []
     atoms_in_sgroups = []
     for sg in Chem.GetMolSubstanceGroups(rwmol):
@@ -105,15 +136,12 @@ def get_polymer_formula(molfile):
             sub_mol.AddAtom(atom)
             atoms_in_sgroups.append(atm)
 
-        formula = ""
         formula = get_frag_formula(sub_mol)
-
         if sg.HasProp("LABEL"):
             label = sg.GetProp("LABEL")
         else:
             label = ""
         formula = f"({formula}){label}"
-        formula = formula.replace("*", "")
         formulas.append(formula)
 
     # calc formula for the rest of atoms
@@ -128,37 +156,31 @@ def get_polymer_formula(molfile):
     return ".".join(formulas)
 
 
-def get_molecular_formula(molfile):
-    if polymer_regex.search(molfile):
-        return get_polymer_formula(molfile)
-    else:
-        return get_small_molecule_formula(molfile)
+def get_polymer_mass(mol, func):
+    rwmol = Chem.RWMol(mol)
+    masses = []
+    atoms_in_sgroups = []
+    for sg in Chem.GetMolSubstanceGroups(rwmol):
+        sub_mol = Chem.RWMol()
+        for atm in sg.GetAtoms():
+            atom = rwmol.GetAtomWithIdx(atm)
+            sub_mol.AddAtom(atom)
+            atoms_in_sgroups.append(atm)
 
+        mass = round(func(sub_mol), 5)
+        if sg.HasProp("LABEL"):
+            label = sg.GetProp("LABEL")
+        else:
+            label = ""
+        mass = f"({mass}){label}"
+        masses.append(mass)
 
-def get_avg_mass(molfile):
-    mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
-    mol = drop_isotopes_info(mol)
-    avg_mass = Descriptors.MolWt(mol)
-    return avg_mass
-
-
-def get_monoisotopic_mass(molfile):
-    mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
-    mol = drop_isotopes_info(mol)
-    monoisotopic_mass = Descriptors.ExactMolWt(mol)
-    return monoisotopic_mass
-
-
-def get_inchi_and_key(molfile):
-    inchi = Chem.MolBlockToInchi(molfile)
-    inchi_key = Chem.InchiToInchiKey(inchi)
-    return inchi, inchi_key
-
-
-def get_smiles(molfile):
-    # we do apply RDKit chemistry model for SMILES generation
-    mol = Chem.MolFromMolBlock(molfile)
-    smiles = Chem.MolToSmiles(mol)
-    return smiles
+    # calc the mass for the rest of atoms
+    rwmol.BeginBatchEdit()
+    for atm in atoms_in_sgroups:
+        rwmol.RemoveAtom(atm)
+    rwmol.CommitBatchEdit()
+    rest_mass = round(func(rwmol), 5)
+    if rest_mass > 0.0: # remaining '*' have mass 0.0
+        masses.append(str(rest_mass))
+    return "+".join(masses)
