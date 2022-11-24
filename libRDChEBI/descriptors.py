@@ -187,7 +187,7 @@ def get_polymer_mass(mol, func):
     return "+".join(masses)
 
 
-def get_mass_from_formula(formula):
+def get_mass_from_formula(formula, average=True):
     periodic_table = Chem.GetPeriodicTable()
     matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
     mass = 0
@@ -199,6 +199,9 @@ def get_mass_from_formula(formula):
             if len(matches) > idx + 1 and matches[idx + 1].isnumeric()
             else 1
         )
-        elem_mass = periodic_table.GetMostCommonIsotopeMass(matches[idx])
+        if average:
+            elem_mass = periodic_table.GetAtomicWeight(matches[idx])
+        else:
+            elem_mass = periodic_table.GetMostCommonIsotopeMass(matches[idx])
         mass += elem_mass * mult
     return round(mass, 5)
