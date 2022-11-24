@@ -1,6 +1,7 @@
 from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_valences
 from rdkit.Chem import Descriptors
 from rdkit import Chem
+import re
 
 
 def has_r_group(molfile):
@@ -181,6 +182,23 @@ def get_polymer_mass(mol, func):
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
     rest_mass = round(func(rwmol), 5)
-    if rest_mass > 0.0: # remaining '*' have mass 0.0
+    if rest_mass > 0.0:  # remaining '*' have mass 0.0
         masses.append(str(rest_mass))
     return "+".join(masses)
+
+
+def get_mass_from_formula(formula):
+    periodic_table = Chem.GetPeriodicTable()
+    matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
+    mass = 0
+    for idx in range(len(matches)):
+        if matches[idx].isnumeric():
+            continue
+        mult = (
+            int(matches[idx + 1])
+            if len(matches) > idx + 1 and matches[idx + 1].isnumeric()
+            else 1
+        )
+        elem_mass = periodic_table.GetMostCommonIsotopeMass(matches[idx])
+        mass += elem_mass * mult
+    return round(mass, 5)
