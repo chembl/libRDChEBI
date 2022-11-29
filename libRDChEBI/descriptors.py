@@ -1,7 +1,16 @@
-from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_valences
+from chembl_structure_pipeline.standardizer import (
+    parse_molblock,
+    update_mol_valences,
+    get_isotope_parent_mol,
+)
 from rdkit.Chem import Descriptors
 from rdkit import Chem
 import re
+
+
+polymer_regex = re.compile(
+    r"^M  STY.+(SRU)|(MON)|(COP)|(CRO)|(ANY)", flags=re.MULTILINE
+)
 
 
 def has_r_group(molfile):
@@ -12,17 +21,11 @@ def has_r_group(molfile):
     return False
 
 
-def drop_isotopes_info(mol):
-    """
-    When removing isotpe information following RDKit functions will:
-     - MolWt: Calc the average weight.
-     - ExactMolWt: Calc the monoisotopic weight
-    MolWt takes average weight of each atom only if no isotope information is given.
-    ExactMolWt takes most abundant isotope weight for each atom only if no isotope information is given.
-    """
-    for atom in mol.GetAtoms():
-        atom.SetIsotope(0)
-    return mol
+def is_polymer(molfile):
+    if polymer_regex.search(molfile):
+        return True
+    else:
+        return False
 
 
 def get_net_charge(molfile):
@@ -31,10 +34,10 @@ def get_net_charge(molfile):
     return sum(charges)
 
 
-def get_frag_formula(mol):
+def _get_frag_formula(mol):
     atoms_dict = {}
     for at in mol.GetAtoms():
-        if at.GetSymbol().startswith("R"):
+        if at.GetSymbol()[0] == "R":
             if atoms_dict.get("R"):
                 atoms_dict["R"] += 1
             else:
@@ -52,14 +55,16 @@ def get_frag_formula(mol):
     if hs > 0:
         atoms_dict["H"] = hs
 
-    # '*' represent fragments and do not appear in molecular formula in ChEBI
+    # '*' represent fragments (attaches to something)
+    # and do not appear in molecular formula in ChEBI
     if atoms_dict.get("*"):
         del atoms_dict["*"]
 
     # don't show the number of atoms if count is 1
     atom_str_counts = lambda x: f"{x}" if atoms_dict[x] == 1 else f"{x}{atoms_dict[x]}"
 
-    # R, in ChEBI, represents a class of compounds so it should appear in the molecular formula
+    # R represents a class of compounds (something attaches here)
+    # it appears in the molecular formula
     rs = ""
     if atoms_dict.get("R"):
         rs = atom_str_counts("R")
@@ -77,39 +82,35 @@ def get_frag_formula(mol):
     return molecular_formula
 
 
-def get_small_molecule_formula(mol):
+def get_small_molecule_formula(molfile):
+    mol = parse_molblock(molfile)
+    mol = update_mol_valences(mol)
     frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
-    formulas = [get_frag_formula(frag) for frag in frags]
+    formulas = [_get_frag_formula(frag) for frag in frags]
     return ".".join(formulas)
 
 
-def get_molecular_formula(molfile):
-    mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
-    if Chem.GetMolSubstanceGroups(mol):
-        return get_polymer_formula(mol)
-    else:
-        return get_small_molecule_formula(mol)
-
-
 def get_avg_mass(molfile):
+    avg_mass = None
     mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
-    mol = drop_isotopes_info(mol)
-    if Chem.GetMolSubstanceGroups(mol):
-        return get_polymer_mass(mol, Descriptors.MolWt)
-    else:
-        return Descriptors.MolWt(mol)
+    if mol:
+        mol = update_mol_valences(mol)
+        # When removing isotpe information following RDKit functions will
+        #  - MolWt: Calc the average weight.
+        #  - ExactMolWt: Calc the monoisotopic weight
+        mol = get_isotope_parent_mol(mol)
+        avg_mass = Descriptors.MolWt(mol)
+    return avg_mass
 
 
 def get_monoisotopic_mass(molfile):
+    monoisotopic_mass = None
     mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
-    mol = drop_isotopes_info(mol)
-    if Chem.GetMolSubstanceGroups(mol):
-        return get_polymer_mass(mol, Descriptors.ExactMolWt)
-    else:
-        return Descriptors.ExactMolWt(mol)
+    if mol:
+        mol = update_mol_valences(mol)
+        mol = get_isotope_parent_mol(mol)
+        monoisotopic_mass = Descriptors.ExactMolWt(mol)
+    return monoisotopic_mass
 
 
 def get_inchi_and_key(molfile):
@@ -125,7 +126,9 @@ def get_smiles(molfile):
     return smiles
 
 
-def get_polymer_formula(mol):
+def get_polymer_formula(molfile):
+    mol = parse_molblock(molfile)
+    mol = update_mol_valences(mol)
     rwmol = Chem.RWMol(mol)
     formulas = []
     atoms_in_sgroups = []
@@ -137,7 +140,7 @@ def get_polymer_formula(mol):
             sub_mol.AddAtom(atom)
             atoms_in_sgroups.append(atm)
 
-        formula = get_frag_formula(sub_mol)
+        formula = _get_frag_formula(sub_mol)
         if sg.HasProp("LABEL"):
             label = sg.GetProp("LABEL")
         else:
@@ -150,14 +153,20 @@ def get_polymer_formula(mol):
     for atm in atoms_in_sgroups:
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
-    rest_formula = get_frag_formula(rwmol)
+    rest_formula = _get_frag_formula(rwmol)
 
     if rest_formula:
         formulas.append(rest_formula)
     return ".".join(formulas)
 
 
-def get_polymer_mass(mol, func):
+def get_polymer_mass(molfile, avg=True):
+    if avg:
+        func = Descriptors.MolWt
+    else:
+        func = Descriptors.ExactMolWt
+    mol = parse_molblock(molfile)
+    mol = update_mol_valences(mol)
     rwmol = Chem.RWMol(mol)
     masses = []
     atoms_in_sgroups = []
@@ -182,12 +191,16 @@ def get_polymer_mass(mol, func):
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
     rest_mass = round(func(rwmol), 5)
-    if rest_mass > 0.0:  # remaining '*' have mass 0.0
+    if rest_mass > 0.0:  # potential remaining '*' have mass 0.0
         masses.append(str(rest_mass))
     return "+".join(masses)
 
 
 def get_mass_from_formula(formula, average=True):
+    """
+    average=True: avg mass
+    average=False: monoisotopic mass
+    """
     periodic_table = Chem.GetPeriodicTable()
     matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
     mass = 0

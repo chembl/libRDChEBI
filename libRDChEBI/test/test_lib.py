@@ -1,6 +1,8 @@
-from .. import (
+from ..descriptors import (
     get_net_charge,
-    get_molecular_formula,
+    get_small_molecule_formula,
+    get_polymer_formula,
+    get_polymer_mass,
     get_avg_mass,
     get_monoisotopic_mass,
 )
@@ -32,7 +34,7 @@ class TestRGroupMols:
     def test_molFormula(self):
         for key, mol in r_group.items():
             assert (
-                get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                get_small_molecule_formula(mol["molfile"]) == mol["mol_formula"]
             ), f"ChEBI:{key}"
 
     def test_netCharge(self):
@@ -56,7 +58,7 @@ class TestMultipleRGroupMols:
     def test_molFormula(self):
         for key, mol in m_r_groups.items():
             assert (
-                get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                get_small_molecule_formula(mol["molfile"]) == mol["mol_formula"]
             ), f"ChEBI:{key}"
 
     def test_netCharge(self):
@@ -80,7 +82,7 @@ class TestSingleStar:
     def test_molFormula(self):
         for key, mol in single_star.items():
             assert (
-                get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                get_small_molecule_formula(mol["molfile"]) == mol["mol_formula"]
             ), f"ChEBI:{key}"
 
     def test_netCharge(self):
@@ -92,14 +94,14 @@ class TestPolymers:
     def test_monoisotopic_mass(self):
         for key, mol in polymers.items():
             if mol["monoisotopic_mass"] is not None:
-                assert get_monoisotopic_mass(mol["molfile"]) == approx(
+                assert get_polymer_mass(mol["molfile"], avg=False) == approx(
                     mol["monoisotopic_mass"]
                 ), f"ChEBI:{key}"
 
     def test_avgMass(self):
         for key, mol in polymers.items():
             if mol["avg_mass"] is not None:
-                assert get_avg_mass(mol["molfile"]) == approx(
+                assert get_polymer_mass(mol["molfile"], avg=True) == approx(
                     mol["avg_mass"]
                 ), f"ChEBI:{key}"
 
@@ -107,7 +109,7 @@ class TestPolymers:
         for key, mol in polymers.items():
             if mol["mol_formula"] is not None:
                 assert (
-                    get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                    get_polymer_formula(mol["molfile"]) == mol["mol_formula"]
                 ), f"ChEBI:{key}"
 
     def test_netCharge(self):
@@ -137,7 +139,7 @@ class TestMixtures:
         for key, mol in mixtures.items():
             if mol["mol_formula"] is not None:
                 assert (
-                    get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                    get_small_molecule_formula(mol["molfile"]) == mol["mol_formula"]
                 ), f"ChEBI:{key}"
 
     def test_netCharge(self):
@@ -167,7 +169,7 @@ class TestAtoms:
         for key, mol in atoms.items():
             if mol["mol_formula"] is not None:
                 assert (
-                    get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                    get_small_molecule_formula(mol["molfile"]) == mol["mol_formula"]
                 ), f"ChEBI:{key}"
 
     def test_netCharge(self):
@@ -182,14 +184,14 @@ class TestExtraPolymers:
     def test_monoisotopic_mass(self):
         for key, mol in extra_polymers.items():
             if mol["monoisotopic_mass"] is not None:
-                assert get_monoisotopic_mass(mol["molfile"]) == approx(
+                assert get_polymer_mass(mol["molfile"], avg=False) == approx(
                     mol["monoisotopic_mass"]
                 ), f"ChEBI:{key}"
 
     def test_avgMass(self):
         for key, mol in extra_polymers.items():
             if mol["avg_mass"] is not None:
-                assert get_avg_mass(mol["molfile"]) == approx(
+                assert get_polymer_mass(mol["molfile"], avg=True) == approx(
                     mol["avg_mass"]
                 ), f"ChEBI:{key}"
 
@@ -197,7 +199,7 @@ class TestExtraPolymers:
         for key, mol in extra_polymers.items():
             if mol["mol_formula"] is not None:
                 assert (
-                    get_molecular_formula(mol["molfile"]) == mol["mol_formula"]
+                    get_polymer_formula(mol["molfile"]) == mol["mol_formula"]
                 ), f"ChEBI:{key}"
 
     def test_netCharge(self):
