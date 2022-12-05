@@ -46,7 +46,7 @@ jobs:
   upload_all:
     name: Upload if release
     runs-on: ubuntu-latest
-    needs: build
+    needs: test
     if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
