@@ -21,6 +21,14 @@ def has_r_group(molfile):
     return False
 
 
+def has_dummy_atom(molfile):
+    mol = parse_molblock(molfile)
+    for at in mol.GetAtoms():
+        if at.GetSymbol() == '*':
+            return True
+    return False
+
+
 def is_polymer(molfile):
     if polymer_regex.search(molfile):
         return True
