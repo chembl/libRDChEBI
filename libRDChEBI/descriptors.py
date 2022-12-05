@@ -121,19 +121,6 @@ def get_monoisotopic_mass(molfile):
     return monoisotopic_mass
 
 
-def get_inchi_and_key(molfile):
-    inchi = Chem.MolBlockToInchi(molfile)
-    inchi_key = Chem.InchiToInchiKey(inchi)
-    return inchi, inchi_key
-
-
-def get_smiles(molfile):
-    # we do apply RDKit chemistry model for SMILES generation
-    mol = Chem.MolFromMolBlock(molfile)
-    smiles = Chem.MolToSmiles(mol)
-    return smiles
-
-
 def get_polymer_formula(molfile):
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
