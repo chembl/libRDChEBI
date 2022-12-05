@@ -2,4 +2,4 @@
 
 # libRDChEBI
 
-Wild attempt to reproduce chemistry in ChEBI using RDKit.
+ChEBI with RDKit.
