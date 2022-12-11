@@ -2,4 +2,4 @@
 
 # libRDChEBI
 
-ChEBI with RDKit.
+ChEBI with RDKit (still WIP).
