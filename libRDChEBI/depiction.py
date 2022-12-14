@@ -24,6 +24,7 @@ def depict(
     draw_options.maxFontSize = maxFontSize
     draw_options.explicitMethyl = explicitMethyl
     draw_options.scaleBondWidth = scaleBondWidth
+    draw_options.addStereoAnnotation = True
     draw.DrawMolecule(mol)
     draw.FinishDrawing()
     svg = draw.GetDrawingText()
