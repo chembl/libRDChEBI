@@ -13,6 +13,7 @@ def depict(
     useCDKAtomPalette=True,
     explicitMethyl=True,
     scaleBondWidth=False,
+    addStereoAnnotation = True,
 ):
     mol = parse_molblock(molfile)
     draw = rdMolDraw2D.MolDraw2DSVG(width, height)
@@ -24,7 +25,7 @@ def depict(
     draw_options.maxFontSize = maxFontSize
     draw_options.explicitMethyl = explicitMethyl
     draw_options.scaleBondWidth = scaleBondWidth
-    draw_options.addStereoAnnotation = True
+    draw_options.addStereoAnnotation = addStereoAnnotation
     draw.DrawMolecule(mol)
     draw.FinishDrawing()
     svg = draw.GetDrawingText()
