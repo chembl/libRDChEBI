@@ -22,10 +22,10 @@ def depict(
     for at in mol.GetAtoms():
         dlabel = at.GetSymbol()
         if len(dlabel) > 1 and dlabel[0] == "R":
-            if dlabel[1] != "#":
-                at.SetProp("_displayLabel", f"R<sub>{dlabel[1:]}</sub>")
-            else:
+            if dlabel[1] == "#":
                 at.SetProp("_displayLabel", "R")
+            else:
+                at.SetProp("_displayLabel", f"R<sub>{dlabel[1:]}</sub>")
 
     draw = rdMolDraw2D.MolDraw2DSVG(width, height)
     draw_options = draw.drawOptions()
