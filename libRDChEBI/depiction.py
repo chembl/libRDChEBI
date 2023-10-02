@@ -25,7 +25,7 @@ def depict(
             if dlabel[1] == "#":
                 at.SetProp("_displayLabel", "R")
             else:
-                at.SetProp("_displayLabel", f"R<sub>{dlabel[1:]}</sub>")
+                at.SetProp("_displayLabel", f"R{dlabel[1:]}")
 
     draw = rdMolDraw2D.MolDraw2DSVG(width, height)
     draw_options = draw.drawOptions()
