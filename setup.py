@@ -3,7 +3,7 @@ from setuptools import setup
 if __name__ == "__main__":
     setup(
         name="libRDChEBI",
-        version="0.1.0",
+        version="0.1.1",
         author="Eloy Félix",
         author_email="chebi-help@ebi.ac.uk",
         description="RDKit library to deal with ChEBI's chemistry",
