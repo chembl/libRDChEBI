@@ -2,4 +2,4 @@
 
 # libRDChEBI
 
-ChEBI with RDKit (still WIP).
+RDKit-based library implementing the chemistry-related functionality of the [ChEBI](https://www.ebi.ac.uk/chebi/) database.
