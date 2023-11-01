@@ -1,7 +1,6 @@
 from chembl_structure_pipeline.standardizer import (
     parse_molblock,
     update_mol_valences,
-    get_isotope_parent_mol,
 )
 from rdkit.Chem import Descriptors
 from rdkit import Chem
@@ -103,10 +102,6 @@ def get_avg_mass(molfile):
     mol = parse_molblock(molfile)
     if mol:
         mol = update_mol_valences(mol)
-        # When removing isotpe information following RDKit functions will
-        #  - MolWt: Calc the average weight.
-        #  - ExactMolWt: Calc the monoisotopic weight
-        mol = get_isotope_parent_mol(mol)
         avg_mass = Descriptors.MolWt(mol)
     return avg_mass
 
@@ -116,7 +111,6 @@ def get_monoisotopic_mass(molfile):
     mol = parse_molblock(molfile)
     if mol:
         mol = update_mol_valences(mol)
-        mol = get_isotope_parent_mol(mol)
         monoisotopic_mass = Descriptors.ExactMolWt(mol)
     return monoisotopic_mass
 
