@@ -2,6 +2,22 @@ from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_va
 from rdkit import Chem
 
 
+def transform_alias_to_r(molfile):
+    """
+    Some molecules in old ChEBI have R groups defined as Carbons with aliases
+    this function fixes them
+    """
+    mol = parse_molblock(molfile)
+    for at in mol.GetAtoms():
+        if "molFileAlias" in at.GetPropNames():
+            alias = at.GetProp("molFileAlias")
+            if alias.startswith("R"):
+                at.SetAtomicNum(0)
+                at.SetProp("dummyLabel", alias)
+                at.SetProp("molFileAlias", "")
+    return Chem.MolToMolBlock(mol)
+
+
 def remove_hs(molfile):
     """Bespoke remove Hs function for MetaboLights team"""
     mol = parse_molblock(molfile)

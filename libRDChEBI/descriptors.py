@@ -20,10 +20,29 @@ def has_r_group(molfile):
     return False
 
 
+def no_r_group_and_alias(molfile):
+    """
+    Some molecules in old ChEBI have R groups defined as Carbons with aliases
+    this function finds them
+    """
+    mol = parse_molblock(molfile)
+    r_group = False
+    alias = False
+    for at in mol.GetAtoms():
+        if at.GetSymbol().startswith("R"):
+            r_group = True
+        if "molFileAlias" in at.GetPropNames():
+            alias = True
+    if not r_group and alias:
+        return True
+    else:
+        return False
+
+
 def has_dummy_atom(molfile):
     mol = parse_molblock(molfile)
     for at in mol.GetAtoms():
-        if at.GetSymbol() == '*':
+        if at.GetSymbol() == "*":
             return True
     return False
 
@@ -41,24 +60,53 @@ def get_net_charge(molfile):
     return sum(charges)
 
 
+def _create_or_add_one(dictionary, key):
+    if dictionary.get(key):
+        dictionary[key] += 1
+    else:
+        dictionary[key] = 1
+    return dictionary
+
+
+def _create_or_add_one_nested(dictionary, key1, key2):
+    if dictionary.get(key1):
+        if dictionary[key1].get(key2):
+            dictionary[key1][key2] += 1
+        else:
+            dictionary[key1][key2] = 1
+    else:
+        dictionary[key1] = {key2: 1}
+    return dictionary
+
+
 def _get_frag_formula(mol):
     atoms_dict = {}
-    for at in mol.GetAtoms():
-        if at.GetSymbol()[0] == "R":
-            if atoms_dict.get("R"):
-                atoms_dict["R"] += 1
-            else:
-                atoms_dict["R"] = 1
-        else:
-            if atoms_dict.get(at.GetSymbol()):
-                atoms_dict[at.GetSymbol()] += 1
-            else:
-                atoms_dict[at.GetSymbol()] = 1
+    isotopes_dict = {}
     hs = 0
     for at in mol.GetAtoms():
-        if at.GetSymbol() == "H":
-            hs += 1
+        # R groups can show isotopes(!) if numbered (e.g. R1, R2...)
+        # so we want to exclude isotopes with AtomicNum=0 here
+        # Deuterium and Tritium are a special case so skipping H here
+        if at.GetIsotope() and at.GetAtomicNum() != 0 and at.GetSymbol() != "H":
+            isotopes_dict = _create_or_add_one_nested(
+                isotopes_dict, at.GetSymbol(), at.GetIsotope()
+            )
+        else:
+            # we don't want to mess with Ra, Rb, Re, Rf, Rg, Rh, Rn, Ru
+            # to make sure is an R grup AtomicNum must be 0
+            if at.GetSymbol()[0] == "R" and at.GetAtomicNum() == 0:
+                atoms_dict = _create_or_add_one(atoms_dict, "R")
+            elif at.GetSymbol() == "H":
+                if at.GetIsotope() == 2:  # Deuterium
+                    atoms_dict = _create_or_add_one(atoms_dict, "D")
+                elif at.GetIsotope() == 3:  # Tritium
+                    atoms_dict = _create_or_add_one(atoms_dict, "T")
+                else:
+                    hs += 1
+            else:
+                atoms_dict = _create_or_add_one(atoms_dict, at.GetSymbol())
         hs += at.GetTotalNumHs(includeNeighbors=False)
+
     if hs > 0:
         atoms_dict["H"] = hs
 
@@ -77,14 +125,27 @@ def _get_frag_formula(mol):
         rs = atom_str_counts("R")
         del atoms_dict["R"]
 
-    # Hill order system: carbon, hydrogen, then all other elements in alphabetical order
+    # Hill System Order:
+    # Carbon first, Hydrogen second, and all remaining elements, including Deuterium and Tritium, in alphabetical order
+    pse = Chem.GetPeriodicTable()
+    els = list(
+        filter(
+            lambda x: x not in ("H", "C"),
+            [pse.GetElementSymbol(i) for i in range(1, 119)],
+        )
+    )
+    elements_list = ["C", "H"] + sorted(els + ["D", "T"])
+
     molecular_formula = ""
-    for elem in ("C", "H"):
+    for elem in elements_list:
         if atoms_dict.get(elem):
             molecular_formula += atom_str_counts(elem)
-            del atoms_dict[elem]
-    for at in sorted(atoms_dict.keys()):
-        molecular_formula += atom_str_counts(at)
+        if isotopes_dict.get(elem):
+            for iso in sorted(isotopes_dict[elem].keys()):
+                if isotopes_dict[elem][iso] == 1:
+                    molecular_formula += f"[{iso}{elem}]"
+                else:
+                    molecular_formula += f"[{iso}{elem}{isotopes_dict[elem][iso]}]"
     molecular_formula = molecular_formula + rs
     return molecular_formula
 
