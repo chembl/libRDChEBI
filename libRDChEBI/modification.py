@@ -9,7 +9,7 @@ def transform_alias_to_r(molfile):
     """
     mol = parse_molblock(molfile)
     for at in mol.GetAtoms():
-        if "molFileAlias" in at.GetPropNames():
+        if "molFileAlias" in at.GetPropNames() and at.GetSymbol() == "C":
             alias = at.GetProp("molFileAlias")
             if alias.startswith("R"):
                 at.SetAtomicNum(0)

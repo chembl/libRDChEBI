@@ -31,7 +31,7 @@ def no_r_group_and_alias(molfile):
     for at in mol.GetAtoms():
         if at.GetSymbol().startswith("R"):
             r_group = True
-        if "molFileAlias" in at.GetPropNames():
+        if "molFileAlias" in at.GetPropNames() and at.GetSymbol() == "C":
             alias = True
     if not r_group and alias:
         return True
