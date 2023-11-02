@@ -16,6 +16,8 @@ def depict(
     addStereoAnnotation=True,
 ):
     mol = parse_molblock(molfile)
+    if not mol:
+        return None
 
     # ChEBI doesn't like to show '#'
     # nor superindices in numbered R groups

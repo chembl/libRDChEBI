@@ -14,6 +14,7 @@ from .mols import (
     mixtures,
     atoms,
     extra_polymers,
+    isotopes,
 )
 from pytest import approx
 
@@ -207,4 +208,27 @@ class TestExtraPolymers:
             if mol["net_charge"] is not None:
                 assert (
                     get_net_charge(mol["molfile"]) == mol["net_charge"]
+                ), f"ChEBI:{key}"
+
+
+class TestIsotopes:
+    def test_monoisotopic_mass(self):
+        for key, mol in isotopes.items():
+            if mol["monoisotopic_mass"] is not None:
+                assert get_monoisotopic_mass(mol["molfile"]) == approx(
+                    mol["monoisotopic_mass"]
+                ), f"ChEBI:{key}"
+
+    def test_avgMass(self):
+        for key, mol in isotopes.items():
+            if mol["avg_mass"] is not None:
+                assert get_avg_mass(mol["molfile"]) == approx(
+                    mol["avg_mass"]
+                ), f"ChEBI:{key}"
+
+    def test_molFormula(self):
+        for key, mol in isotopes.items():
+            if mol["mol_formula"] is not None:
+                assert (
+                    get_small_molecule_formula(mol["molfile"]) == mol["mol_formula"]
                 ), f"ChEBI:{key}"
