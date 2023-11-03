@@ -12,10 +12,19 @@ polymer_regex = re.compile(
 )
 
 
+def atom_is_r_group(at):
+    # we don't want to mess with Ra, Rb, Re, Rf, Rg, Rh, Rn, Ru
+    # to make sure is an R grup (R, R#, R1, Rn... ) AtomicNum must be 0
+    if at.GetSymbol()[0] == "R" and at.GetAtomicNum() == 0:
+        return True
+    else:
+        return False
+
+
 def has_r_group(molfile):
     mol = parse_molblock(molfile)
     for at in mol.GetAtoms():
-        if at.GetSymbol().startswith("R"):
+        if atom_is_r_group(at):
             return True
     return False
 
@@ -29,7 +38,7 @@ def no_r_group_and_alias(molfile):
     r_group = False
     alias = False
     for at in mol.GetAtoms():
-        if at.GetSymbol().startswith("R"):
+        if atom_is_r_group(at):
             r_group = True
         if "molFileAlias" in at.GetPropNames() and at.GetSymbol() == "C":
             alias = True
@@ -92,9 +101,7 @@ def _get_frag_formula(mol):
                 isotopes_dict, at.GetSymbol(), at.GetIsotope()
             )
         else:
-            # we don't want to mess with Ra, Rb, Re, Rf, Rg, Rh, Rn, Ru
-            # to make sure is an R grup AtomicNum must be 0
-            if at.GetSymbol()[0] == "R" and at.GetAtomicNum() == 0:
+            if atom_is_r_group(at):
                 atoms_dict = _create_or_add_one(atoms_dict, "R")
             elif at.GetSymbol() == "H":
                 if at.GetIsotope() == 2:  # Deuterium
