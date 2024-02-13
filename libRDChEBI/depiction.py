@@ -1,5 +1,6 @@
 from chembl_structure_pipeline.standardizer import parse_molblock
 from rdkit.Chem.Draw import rdMolDraw2D
+from rdkit import Chem
 
 
 def depict(
@@ -18,6 +19,9 @@ def depict(
     mol = parse_molblock(molfile)
     if not mol:
         return None
+    # parse_molblock only re-applies dash and wedge bonds
+    # but not the wiggly ones
+    Chem.ReapplyMolBlockWedging(mol)
 
     # ChEBI doesn't like to show '#'
     # nor superindices in numbered R groups
