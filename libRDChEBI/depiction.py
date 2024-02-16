@@ -15,23 +15,35 @@ def depict(
     explicitMethyl=True,
     scaleBondWidth=False,
     addStereoAnnotation=True,
+    useMolBlockWedging=True,
 ):
     mol = parse_molblock(molfile)
     if not mol:
         return None
-    # parse_molblock only re-applies dash and wedge bonds
-    # but not the wiggly ones
-    Chem.ReapplyMolBlockWedging(mol)
 
-    # ChEBI doesn't like to show '#'
-    # nor superindices in numbered R groups
+    sgs_single_atom = []
+    for sg in Chem.GetMolSubstanceGroups(mol):
+        sg_props = sg.GetPropsAsDict()
+        if sg_props["TYPE"] != "SUP":
+            continue
+        sg_atoms = list(sg.GetAtoms())
+        if len(sg.GetAtoms()) == 1:
+            sgs_single_atom.append([sg_atoms, sg_props["LABEL"]])
+
     for at in mol.GetAtoms():
         dlabel = at.GetSymbol()
-        if len(dlabel) > 1 and dlabel[0] == "R":
+        # ChEBI doesn't like to show '#'
+        # nor superindices in numbered R groups
+        if at.GetAtomicNum() == 0 and len(dlabel) > 1 and dlabel[0] == "R":
             if dlabel[1] == "#":
                 at.SetProp("_displayLabel", "R")
             else:
                 at.SetProp("_displayLabel", f"R{dlabel[1:]}")
+            # add sgroup label if the R group is the only
+            # member of a SUP SGROUP
+            for sg in sgs_single_atom:
+                if at.GetIdx() in sg[0]:
+                    at.SetProp("_displayLabel", sg[1])
 
     draw = rdMolDraw2D.MolDraw2DSVG(width, height)
     draw_options = draw.drawOptions()
@@ -43,6 +55,7 @@ def depict(
     draw_options.explicitMethyl = explicitMethyl
     draw_options.scaleBondWidth = scaleBondWidth
     draw_options.addStereoAnnotation = addStereoAnnotation
+    draw_options.useMolBlockWedging = useMolBlockWedging
     draw.DrawMolecule(mol)
     draw.FinishDrawing()
     svg = draw.GetDrawingText()

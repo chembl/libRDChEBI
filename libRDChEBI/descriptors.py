@@ -111,6 +111,9 @@ def _get_frag_formula(mol):
                     atoms_dict = _create_or_add_one(atoms_dict, "T")
                 else:
                     hs += 1
+            # capture Reaxys generics
+            elif at.GetSymbol() == "*" and at.GetQueryType():
+                atoms_dict = _create_or_add_one(atoms_dict, at.GetQueryType())
             else:
                 atoms_dict = _create_or_add_one(atoms_dict, at.GetSymbol())
         hs += at.GetTotalNumHs(includeNeighbors=False)
@@ -142,7 +145,7 @@ def _get_frag_formula(mol):
             [pse.GetElementSymbol(i) for i in range(1, 119)],
         )
     )
-    elements_list = ["C", "H"] + sorted(els + ["D", "T"])
+    elements_list = ["C", "H"] + sorted(els + ["D", "T"]) + ["A", "M", "X"]
 
     molecular_formula = ""
     for elem in elements_list:
@@ -163,7 +166,9 @@ def get_small_molecule_formula(molfile):
     mol = update_mol_valences(mol)
     frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
     formulas = [_get_frag_formula(frag) for frag in frags]
-    return ".".join(formulas)
+    # disconnected dummy atom woud generate '' as a formula.
+    # don't want to concatenate that
+    return ".".join(filter(None, formulas))
 
 
 def get_avg_mass(molfile):
