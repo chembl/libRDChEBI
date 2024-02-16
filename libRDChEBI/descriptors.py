@@ -194,33 +194,69 @@ def get_polymer_formula(molfile):
     mol = update_mol_valences(mol)
     rwmol = Chem.RWMol(mol)
     formulas = []
-    atoms_in_sgroups = []
-    for sg in Chem.GetMolSubstanceGroups(rwmol):
-        sub_mol = Chem.RWMol()
-        # we only need the atoms (with their valences) in SGroups for the formula
-        for atm in sg.GetAtoms():
-            atom = rwmol.GetAtomWithIdx(atm)
-            sub_mol.AddAtom(atom)
-            atoms_in_sgroups.append(atm)
+    atoms_to_remove = []
 
-        formula = _get_frag_formula(sub_mol)
-        if sg.HasProp("LABEL"):
-            label = sg.GetProp("LABEL")
+    for sg in Chem.GetMolSubstanceGroups(rwmol):
+        sg_props = sg.GetPropsAsDict()
+        if sg_props["TYPE"] in ("SUP", "MUL"):
+            continue
+
+        atoms_in_sgroup = [at_idx for at_idx in sg.GetAtoms()]
+        atoms_to_remove += atoms_in_sgroup
+        sg_sub_mol = Chem.RWMol()
+
+        for at_idx in atoms_in_sgroup:
+            atom = rwmol.GetAtomWithIdx(at_idx)
+            sg_sub_mol.AddAtom(atom)
+
+        sg_formula = _get_frag_formula(sg_sub_mol)
+        conn_atoms = get_conn_atoms(mol, atoms_in_sgroup[0])
+        remain_formula = ""
+
+        if len(conn_atoms) > len(atoms_in_sgroup):
+            sub_mol_conn = Chem.RWMol()
+            for at_idx in set(conn_atoms) - set(atoms_in_sgroup):
+                atom = rwmol.GetAtomWithIdx(at_idx)
+                sub_mol_conn.AddAtom(atom)
+                atoms_to_remove.append(at_idx)
+            remain_formula = _get_frag_formula(sub_mol_conn)
+
+        label = sg.GetProp("LABEL") if sg.HasProp("LABEL") else ""
+
+        if remain_formula:
+            formula = f"({sg_formula}){label}{remain_formula}"
         else:
-            label = ""
-        formula = f"({formula}){label}"
+            formula = f"({sg_formula}){label}"
         formulas.append(formula)
 
-    # calc formula for the rest of atoms
     rwmol.BeginBatchEdit()
-    for atm in atoms_in_sgroups:
+    for atm in atoms_to_remove:
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
-    rest_formula = _get_frag_formula(rwmol)
 
-    if rest_formula:
-        formulas.append(rest_formula)
+    frags = Chem.GetMolFrags(rwmol, asMols=True, sanitizeFrags=False)
+    remain_formulas = [_get_frag_formula(frag) for frag in frags]
+    if remain_formulas:
+        formulas += remain_formulas
     return ".".join(formulas)
+
+
+def get_conn_atoms(mol, atom_idx):
+    connected_atoms = set()
+    queue = [atom_idx]
+    visited = set()
+
+    while queue:
+        current_atom_idx = queue.pop(0)
+        if current_atom_idx not in visited:
+            visited.add(current_atom_idx)
+            connected_atoms.add(current_atom_idx)
+            neighbors = mol.GetAtomWithIdx(current_atom_idx).GetNeighbors()
+            for neighbor in neighbors:
+                neighbor_idx = neighbor.GetIdx()
+                if neighbor_idx not in visited:
+                    queue.append(neighbor_idx)
+    return connected_atoms
 
 
 def get_polymer_mass(molfile, avg=True):
