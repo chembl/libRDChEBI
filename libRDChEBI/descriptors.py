@@ -71,21 +71,13 @@ def get_net_charge(molfile):
 
 
 def _create_or_add_one(dictionary, key):
-    if dictionary.get(key):
-        dictionary[key] += 1
-    else:
-        dictionary[key] = 1
+    dictionary[key] = dictionary.get(key, 0) + 1
     return dictionary
 
 
 def _create_or_add_one_nested(dictionary, key1, key2):
-    if dictionary.get(key1):
-        if dictionary[key1].get(key2):
-            dictionary[key1][key2] += 1
-        else:
-            dictionary[key1][key2] = 1
-    else:
-        dictionary[key1] = {key2: 1}
+    dictionary[key1] = dictionary.get(key1, {})
+    dictionary[key1][key2] = dictionary[key1].get(key2, 0) + 1
     return dictionary
 
 
@@ -259,42 +251,6 @@ def get_conn_atoms(mol, atom_idx):
     return connected_atoms
 
 
-def get_polymer_mass(molfile, avg=True):
-    if avg:
-        func = Descriptors.MolWt
-    else:
-        func = Descriptors.ExactMolWt
-    mol = parse_molblock(molfile)
-    mol = update_mol_valences(mol)
-    rwmol = Chem.RWMol(mol)
-    masses = []
-    atoms_in_sgroups = []
-    for sg in Chem.GetMolSubstanceGroups(rwmol):
-        sub_mol = Chem.RWMol()
-        for atm in sg.GetAtoms():
-            atom = rwmol.GetAtomWithIdx(atm)
-            sub_mol.AddAtom(atom)
-            atoms_in_sgroups.append(atm)
-
-        mass = round(func(sub_mol), 5)
-        if sg.HasProp("LABEL"):
-            label = sg.GetProp("LABEL")
-        else:
-            label = ""
-        mass = f"({mass}){label}"
-        masses.append(mass)
-
-    # calc the mass for the rest of atoms
-    rwmol.BeginBatchEdit()
-    for atm in atoms_in_sgroups:
-        rwmol.RemoveAtom(atm)
-    rwmol.CommitBatchEdit()
-    rest_mass = round(func(rwmol), 5)
-    if rest_mass > 0.0:  # potential remaining '*' have mass 0.0
-        masses.append(str(rest_mass))
-    return "+".join(masses)
-
-
 def get_mass_from_formula(formula, average=True):
     """
     average=True: avg mass
@@ -316,4 +272,4 @@ def get_mass_from_formula(formula, average=True):
         else:
             elem_mass = periodic_table.GetMostCommonIsotopeMass(matches[idx])
         mass += elem_mass * mult
-    return round(mass, 5)
+    return mass
