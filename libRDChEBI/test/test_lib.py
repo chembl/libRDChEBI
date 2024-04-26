@@ -2,7 +2,6 @@ from ..descriptors import (
     get_net_charge,
     get_small_molecule_formula,
     get_polymer_formula,
-    get_polymer_mass,
     get_avg_mass,
     get_monoisotopic_mass,
 )
@@ -92,19 +91,6 @@ class TestSingleStar:
 
 
 class TestPolymers:
-    def test_monoisotopic_mass(self):
-        for key, mol in polymers.items():
-            if mol["monoisotopic_mass"] is not None:
-                assert get_polymer_mass(mol["molfile"], avg=False) == approx(
-                    mol["monoisotopic_mass"]
-                ), f"ChEBI:{key}"
-
-    def test_avgMass(self):
-        for key, mol in polymers.items():
-            if mol["avg_mass"] is not None:
-                assert get_polymer_mass(mol["molfile"], avg=True) == approx(
-                    mol["avg_mass"]
-                ), f"ChEBI:{key}"
 
     def test_molFormula(self):
         for key, mol in polymers.items():
@@ -182,19 +168,6 @@ class TestAtoms:
 
 
 class TestExtraPolymers:
-    def test_monoisotopic_mass(self):
-        for key, mol in extra_polymers.items():
-            if mol["monoisotopic_mass"] is not None:
-                assert get_polymer_mass(mol["molfile"], avg=False) == approx(
-                    mol["monoisotopic_mass"]
-                ), f"ChEBI:{key}"
-
-    def test_avgMass(self):
-        for key, mol in extra_polymers.items():
-            if mol["avg_mass"] is not None:
-                assert get_polymer_mass(mol["molfile"], avg=True) == approx(
-                    mol["avg_mass"]
-                ), f"ChEBI:{key}"
 
     def test_molFormula(self):
         for key, mol in extra_polymers.items():
