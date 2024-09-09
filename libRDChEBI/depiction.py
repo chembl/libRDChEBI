@@ -16,6 +16,7 @@ def depict(
     scaleBondWidth=False,
     addStereoAnnotation=True,
     useMolBlockWedging=True,
+    atomLabelDeuteriumTritium=True
 ):
     mol = parse_molblock(molfile)
     if not mol:
@@ -56,6 +57,7 @@ def depict(
     draw_options.scaleBondWidth = scaleBondWidth
     draw_options.addStereoAnnotation = addStereoAnnotation
     draw_options.useMolBlockWedging = useMolBlockWedging
+    draw_options.atomLabelDeuteriumTritium = atomLabelDeuteriumTritium
     draw.DrawMolecule(mol)
     draw.FinishDrawing()
     svg = draw.GetDrawingText()
