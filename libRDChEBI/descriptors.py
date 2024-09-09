@@ -260,8 +260,14 @@ def get_mass_from_formula(formula, average=True):
     matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
     mass = 0
     for idx in range(len(matches)):
+
+        # skip R groups
+        if matches[idx] == "R":
+            continue
+
         if matches[idx].isnumeric():
             continue
+
         mult = (
             int(matches[idx + 1])
             if len(matches) > idx + 1 and matches[idx + 1].isnumeric()
