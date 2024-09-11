@@ -202,14 +202,19 @@ def get_polymer_formula(molfile):
             sg_sub_mol.AddAtom(atom)
 
         sg_formula = _get_frag_formula(sg_sub_mol)
-        conn_atoms = get_conn_atoms(mol, atoms_in_sgroup[0])
+        conn_atoms = get_conn_atoms(rwmol, atoms_in_sgroup[0])
         remain_formula = ""
 
         if len(conn_atoms) > len(atoms_in_sgroup):
             sub_mol_conn = Chem.RWMol()
             for at_idx in set(conn_atoms) - set(atoms_in_sgroup):
                 atom = rwmol.GetAtomWithIdx(at_idx)
-                sub_mol_conn.AddAtom(atom)
+                for ssg in Chem.GetMolSubstanceGroups(rwmol):
+                    index = int(sg_props["index"])
+                    if int(ssg.GetProp("index")) == index:
+                        continue
+                    if at_idx not in ssg.GetAtoms():
+                        sub_mol_conn.AddAtom(atom)
                 atoms_to_remove.append(at_idx)
             remain_formula = _get_frag_formula(sub_mol_conn)
 
@@ -222,7 +227,7 @@ def get_polymer_formula(molfile):
         formulas.append(formula)
 
     rwmol.BeginBatchEdit()
-    for atm in atoms_to_remove:
+    for atm in set(atoms_to_remove):
         rwmol.RemoveAtom(atm)
     rwmol.CommitBatchEdit()
 
