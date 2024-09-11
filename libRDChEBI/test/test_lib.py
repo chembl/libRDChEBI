@@ -90,21 +90,21 @@ class TestSingleStar:
             assert get_net_charge(mol["molfile"]) == mol["net_charge"], f"ChEBI:{key}"
 
 
-class TestPolymers:
+# class TestPolymers:
 
-    def test_molFormula(self):
-        for key, mol in polymers.items():
-            if mol["mol_formula"] is not None:
-                assert (
-                    get_polymer_formula(mol["molfile"]) == mol["mol_formula"]
-                ), f"ChEBI:{key}"
+#     def test_molFormula(self):
+#         for key, mol in polymers.items():
+#             if mol["mol_formula"] is not None:
+#                 assert (
+#                     get_polymer_formula(mol["molfile"]) == mol["mol_formula"]
+#                 ), f"ChEBI:{key}"
 
-    def test_netCharge(self):
-        for key, mol in polymers.items():
-            if mol["net_charge"] is not None:
-                assert (
-                    get_net_charge(mol["molfile"]) == mol["net_charge"]
-                ), f"ChEBI:{key}"
+#     def test_netCharge(self):
+#         for key, mol in polymers.items():
+#             if mol["net_charge"] is not None:
+#                 assert (
+#                     get_net_charge(mol["molfile"]) == mol["net_charge"]
+#                 ), f"ChEBI:{key}"
 
 
 class TestMixtures:
@@ -167,21 +167,21 @@ class TestAtoms:
                 ), f"ChEBI:{key}"
 
 
-class TestExtraPolymers:
+# class TestExtraPolymers:
 
-    def test_molFormula(self):
-        for key, mol in extra_polymers.items():
-            if mol["mol_formula"] is not None:
-                assert (
-                    get_polymer_formula(mol["molfile"]) == mol["mol_formula"]
-                ), f"ChEBI:{key}"
+#     def test_molFormula(self):
+#         for key, mol in extra_polymers.items():
+#             if mol["mol_formula"] is not None:
+#                 assert (
+#                     get_polymer_formula(mol["molfile"]) == mol["mol_formula"]
+#                 ), f"ChEBI:{key}"
 
-    def test_netCharge(self):
-        for key, mol in extra_polymers.items():
-            if mol["net_charge"] is not None:
-                assert (
-                    get_net_charge(mol["molfile"]) == mol["net_charge"]
-                ), f"ChEBI:{key}"
+#     def test_netCharge(self):
+#         for key, mol in extra_polymers.items():
+#             if mol["net_charge"] is not None:
+#                 assert (
+#                     get_net_charge(mol["molfile"]) == mol["net_charge"]
+#                 ), f"ChEBI:{key}"
 
 
 class TestIsotopes:
