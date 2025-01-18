@@ -46,8 +46,9 @@ def remove_hs(molfile: str) -> str:
     for atom in mol.GetAtoms():
         if atom.GetAtomicNum() == 1 and not atom.GetIsotope():
             bnd = atom.GetBonds()[0]
-            if not (
-                bnd.GetBondDir() in (Chem.BondDir.BEGINWEDGE, Chem.BondDir.BEGINDASH)
+            if (
+                bnd.GetBondDir()
+                not in (Chem.BondDir.BEGINWEDGE, Chem.BondDir.BEGINDASH)
             ) and not (
                 bnd.HasProp("_MolFileBondStereo")
                 and bnd.GetUnsignedProp("_MolFileBondStereo") in (1, 6)
