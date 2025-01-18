@@ -1,28 +1,49 @@
+from typing import Optional, List, Tuple
 from chembl_structure_pipeline.standardizer import parse_molblock
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit import Chem
 
 
 def depict(
-    molfile,
-    width=300,
-    height=300,
-    baseFontSize=-1,
-    fixedFontSize=-1,
-    minFontSize=-1,
-    maxFontSize=-1,
-    useCDKAtomPalette=True,
-    explicitMethyl=True,
-    scaleBondWidth=False,
-    addStereoAnnotation=True,
-    useMolBlockWedging=True,
-    atomLabelDeuteriumTritium=True
-):
+    molfile: str,
+    width: int = 300,
+    height: int = 300,
+    baseFontSize: float = -1,
+    fixedFontSize: float = -1,
+    minFontSize: float = -1,
+    maxFontSize: float = -1,
+    useCDKAtomPalette: bool = True,
+    explicitMethyl: bool = True,
+    scaleBondWidth: bool = False,
+    addStereoAnnotation: bool = True,
+    useMolBlockWedging: bool = True,
+    atomLabelDeuteriumTritium: bool = True,
+) -> Optional[str]:
+    """Generate an SVG depiction of a molecule from a molfile.
+
+    Args:
+        molfile: A string containing the molecule data in molfile format
+        width: Width of the output SVG in pixels
+        height: Height of the output SVG in pixels
+        baseFontSize: Base font size for atom labels (-1 for auto)
+        fixedFontSize: Fixed font size for all labels (-1 for variable)
+        minFontSize: Minimum font size for atom labels (-1 for no limit)
+        maxFontSize: Maximum font size for atom labels (-1 for no limit)
+        useCDKAtomPalette: Use CDK atom colors if True
+        explicitMethyl: Show explicit methyl groups if True
+        scaleBondWidth: Scale bond widths with drawing size if True
+        addStereoAnnotation: Add stereochemistry annotations if True
+        useMolBlockWedging: Use molblock wedging info for stereo bonds
+        atomLabelDeuteriumTritium: Show D and T labels for deuterium/tritium
+
+    Returns:
+        An SVG string representation of the molecule or None if parsing fails
+    """
     mol = parse_molblock(molfile)
     if not mol:
         return None
 
-    sgs_single_atom = []
+    sgs_single_atom: List[Tuple[List[int], str]] = []
     for sg in Chem.GetMolSubstanceGroups(mol):
         sg_props = sg.GetPropsAsDict()
         if sg_props["TYPE"] != "SUP":
@@ -60,5 +81,5 @@ def depict(
     draw_options.atomLabelDeuteriumTritium = atomLabelDeuteriumTritium
     draw.DrawMolecule(mol)
     draw.FinishDrawing()
-    svg = draw.GetDrawingText()
+    svg: str = draw.GetDrawingText()
     return svg

@@ -2,10 +2,18 @@ from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_va
 from rdkit import Chem
 
 
-def transform_alias_to_r(molfile):
+def transform_alias_to_r(molfile: str) -> str:
     """
-    Some molecules in old ChEBI have R groups defined as Carbons with aliases
-    this function fixes them
+    Convert Carbon atoms with R-group aliases to proper R-group representations.
+
+    Some molecules in old ChEBI have R groups defined as Carbons with aliases.
+    This function converts them to proper R-group representations.
+
+    Args:
+        molfile (str): The molecule structure in molfile format
+
+    Returns:
+        str: Modified molecule structure in molfile format
     """
     mol = parse_molblock(molfile)
     for at in mol.GetAtoms():
@@ -18,8 +26,19 @@ def transform_alias_to_r(molfile):
     return Chem.MolToMolBlock(mol)
 
 
-def remove_hs(molfile):
-    """Bespoke remove Hs function for MetaboLights team"""
+def remove_hs(molfile: str) -> str:
+    """
+    Remove hydrogen atoms from a molecule structure.
+
+    Bespoke remove Hs function for MetaboLights team. Preserves stereochemistry-relevant
+    hydrogen atoms.
+
+    Args:
+        molfile (str): The molecule structure in molfile format
+
+    Returns:
+        str: Modified molecule structure in molfile format with hydrogens removed
+    """
     mol = parse_molblock(molfile)
     Chem.FastFindRings(mol)
     mol = update_mol_valences(mol)

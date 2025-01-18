@@ -2,17 +2,150 @@ from chembl_structure_pipeline.standardizer import (
     parse_molblock,
     update_mol_valences,
 )
-from rdkit.Chem import Descriptors
+from rdkit.Chem import Descriptors, Mol, Atom
 from rdkit import Chem
+from typing import Dict, Optional, Union
 import re
-
 
 polymer_regex = re.compile(
     r"^M  STY.+(SRU)|(MON)|(COP)|(CRO)|(ANY)", flags=re.MULTILINE
 )
 
 
-def atom_is_r_group(at):
+def is_polymer(molfile: str) -> bool:
+    """
+    Check if the molecule is a polymer based on MOL file structure type flags.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        bool: True if molecule is a polymer, False otherwise
+    """
+    if polymer_regex.search(molfile):
+        return True
+    else:
+        return False
+
+
+def get_molformula(molfile: str) -> Optional[str]:
+    """
+    Get molecular formula for any molecule type (polymer or small molecule).
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        str: Molecular formula following Hill notation, or None if unable to generate
+    """
+    if is_polymer(molfile):
+        return _get_polymer_formula(molfile)
+    else:
+        return _get_small_molecule_formula(molfile)
+
+
+def get_avg_mass(molfile: str) -> Optional[float]:
+    """
+    Calculate average molecular mass.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        float: Average molecular mass or None if calculation fails
+    """
+    avg_mass = None
+    mol = parse_molblock(molfile)
+    if mol:
+        mol = update_mol_valences(mol)
+        avg_mass = Descriptors.MolWt(mol)
+    return avg_mass
+
+
+def get_monoisotopic_mass(molfile: str) -> Optional[float]:
+    """
+    Calculate monoisotopic molecular mass.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        float: Monoisotopic mass or None if calculation fails
+    """
+    monoisotopic_mass = None
+    mol = parse_molblock(molfile)
+    if mol:
+        mol = update_mol_valences(mol)
+        monoisotopic_mass = Descriptors.ExactMolWt(mol)
+    return monoisotopic_mass
+
+
+def get_net_charge(molfile: str) -> int:
+    """
+    Calculate the net formal charge of a molecule.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        int: Sum of all formal charges in the molecule
+    """
+    mol = parse_molblock(molfile)
+    charges = [atm.GetFormalCharge() for atm in mol.GetAtoms()]
+    return sum(charges)
+
+
+def get_mass_from_formula(formula: str, average: bool = True) -> Optional[float]:
+    """
+    Calculate molecular mass from a molecular formula string.
+
+    Args:
+        formula (str): Molecular formula in Hill notation
+        average (bool): If True, calculate average mass; if False, calculate monoisotopic mass
+
+    Returns:
+        float: Calculated mass or None if formula is invalid
+    """
+    periodic_table = Chem.GetPeriodicTable()
+    matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
+    mass = 0
+    for idx in range(len(matches)):
+        # skip R groups
+        if matches[idx] == "R":
+            continue
+
+        if matches[idx].isnumeric():
+            continue
+
+        mult = (
+            int(matches[idx + 1])
+            if len(matches) > idx + 1 and matches[idx + 1].isnumeric()
+            else 1
+        )
+        if average:
+            func = periodic_table.GetAtomicWeight
+        else:
+            func = periodic_table.GetMostCommonIsotopeMass
+        try:
+            elem_mass = func(matches[idx])
+        except RuntimeError as e:
+            return None
+
+        mass += elem_mass * mult
+    return mass
+
+
+def atom_is_r_group(at: Atom) -> bool:
+    """
+    Check if an atom represents an R group.
+    Excludes actual elements starting with R (Ra, Rb, Re, Rf, Rg, Rh, Rn, Ru).
+
+    Args:
+        at (rdkit.Chem.Atom): RDKit atom object
+
+    Returns:
+        bool: True if atom is an R group, False otherwise
+    """
     # we don't want to mess with Ra, Rb, Re, Rf, Rg, Rh, Rn, Ru
     # to make sure is an R grup (R, R#, R1, Rn... ) AtomicNum must be 0
     if at.GetSymbol()[0] == "R" and at.GetAtomicNum() == 0:
@@ -21,7 +154,16 @@ def atom_is_r_group(at):
         return False
 
 
-def has_r_group(molfile):
+def has_r_group(molfile: str) -> bool:
+    """
+    Check if molecule contains any R groups.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        bool: True if molecule contains R groups, False otherwise
+    """
     mol = parse_molblock(molfile)
     for at in mol.GetAtoms():
         if atom_is_r_group(at):
@@ -29,10 +171,16 @@ def has_r_group(molfile):
     return False
 
 
-def no_r_group_and_alias(molfile):
+def no_r_group_and_alias(molfile: str) -> bool:
     """
-    Some molecules in old ChEBI have R groups defined as Carbons with aliases
-    this function finds them
+    Check if molecule has R groups defined as Carbon atoms with R aliases.
+    This is used to handle legacy ChEBI molecules with non-standard R group definitions.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        bool: True if molecule has R group aliases but no proper R groups, False otherwise
     """
     mol = parse_molblock(molfile)
     r_group = False
@@ -49,7 +197,16 @@ def no_r_group_and_alias(molfile):
         return False
 
 
-def has_dummy_atom(molfile):
+def has_dummy_atom(molfile: str) -> bool:
+    """
+    Check if molecule contains dummy atoms (*).
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        bool: True if molecule contains dummy atoms, False otherwise
+    """
     mol = parse_molblock(molfile)
     for at in mol.GetAtoms():
         if at.GetSymbol() == "*":
@@ -57,31 +214,51 @@ def has_dummy_atom(molfile):
     return False
 
 
-def is_polymer(molfile):
-    if polymer_regex.search(molfile):
-        return True
-    else:
-        return False
+def _create_or_add_one(dictionary: Dict, key: str) -> Dict:
+    """
+    Increment value for key in dictionary, creating key if it doesn't exist.
 
+    Args:
+        dictionary (dict): Dictionary to modify
+        key: Dictionary key
 
-def get_net_charge(molfile):
-    mol = parse_molblock(molfile)
-    charges = [atm.GetFormalCharge() for atm in mol.GetAtoms()]
-    return sum(charges)
-
-
-def _create_or_add_one(dictionary, key):
+    Returns:
+        dict: Modified dictionary
+    """
     dictionary[key] = dictionary.get(key, 0) + 1
     return dictionary
 
 
-def _create_or_add_one_nested(dictionary, key1, key2):
+def _create_or_add_one_nested(
+    dictionary: Dict, key1: str, key2: Union[str, int]
+) -> Dict:
+    """
+    Increment value in nested dictionary, creating keys if they don't exist.
+
+    Args:
+        dictionary (dict): Dictionary to modify
+        key1: Outer dictionary key
+        key2: Inner dictionary key
+
+    Returns:
+        dict: Modified dictionary
+    """
     dictionary[key1] = dictionary.get(key1, {})
     dictionary[key1][key2] = dictionary[key1].get(key2, 0) + 1
     return dictionary
 
 
-def _get_frag_formula(mol):
+def _get_frag_formula(mol: Mol) -> str:
+    """
+    Generate molecular formula for a molecule fragment.
+    Handles special cases like R groups, isotopes, and dummy atoms.
+
+    Args:
+        mol (rdkit.Chem.Mol): RDKit molecule object
+
+    Returns:
+        str: Molecular formula following Hill notation
+    """
     atoms_dict = {}
     isotopes_dict = {}
     hs = 0
@@ -153,7 +330,17 @@ def _get_frag_formula(mol):
     return molecular_formula
 
 
-def get_small_molecule_formula(molfile):
+def _get_small_molecule_formula(molfile: str) -> str:
+    """
+    Generate molecular formula for a small molecule.
+    Handles multiple fragments and dummy atoms.
+
+    Args:
+        molfile (str): MOL file content as string
+
+    Returns:
+        str: Molecular formula following Hill notation, fragments separated by dots
+    """
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
     frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
@@ -163,48 +350,40 @@ def get_small_molecule_formula(molfile):
     return ".".join(filter(None, formulas))
 
 
-def get_avg_mass(molfile):
-    avg_mass = None
-    mol = parse_molblock(molfile)
-    if mol:
-        mol = update_mol_valences(mol)
-        avg_mass = Descriptors.MolWt(mol)
-    return avg_mass
+def _get_polymer_formula(molfile: str) -> Optional[str]:
+    """
+    Generate molecular formula for a polymer.
+    Handles substance groups and remaining atoms outside groups.
 
+    Args:
+        molfile (str): MOL file content as string
 
-def get_monoisotopic_mass(molfile):
-    monoisotopic_mass = None
-    mol = parse_molblock(molfile)
-    if mol:
-        mol = update_mol_valences(mol)
-        monoisotopic_mass = Descriptors.ExactMolWt(mol)
-    return monoisotopic_mass
-
-
-def get_polymer_formula(molfile):
+    Returns:
+        str: Molecular formula following Hill notation with substance group labeling, or None if fails
+    """
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
     sgroups = Chem.GetMolSubstanceGroups(mol)
     formulas = []
     processed_atoms = set()
-    
-    # First pass - process all defined sgroups    
+
+    # First pass - process all defined sgroups
     for sg in sgroups:
-        if not sg.HasProp('TYPE'):
+        if not sg.HasProp("TYPE"):
             continue
-            
-        sg_type = sg.GetProp('TYPE')
+
+        sg_type = sg.GetProp("TYPE")
         if sg_type in ("SUP", "MUL"):
             continue
-            
+
         sg_atoms = set(sg.GetAtoms())
         if not sg_atoms:
             continue
-            
+
         # Create submolecule for this sgroup
         sg_mol = Chem.RWMol()
         atom_map = {}
-        
+
         for at_idx in sg_atoms:
             if at_idx in processed_atoms:
                 continue
@@ -212,7 +391,7 @@ def get_polymer_formula(molfile):
             new_idx = sg_mol.AddAtom(atom)
             atom_map[at_idx] = new_idx
             processed_atoms.add(at_idx)
-            
+
         # Add bonds between atoms in this sgroup
         for at_idx in sg_atoms:
             atom = mol.GetAtomWithIdx(at_idx)
@@ -222,120 +401,52 @@ def get_polymer_formula(molfile):
                 if begin_idx in sg_atoms and end_idx in sg_atoms:
                     if begin_idx not in atom_map or end_idx not in atom_map:
                         continue
-                    if not sg_mol.GetBondBetweenAtoms(atom_map[begin_idx], atom_map[end_idx]):
-                        sg_mol.AddBond(atom_map[begin_idx], atom_map[end_idx], bond.GetBondType())
-        
+                    if not sg_mol.GetBondBetweenAtoms(
+                        atom_map[begin_idx], atom_map[end_idx]
+                    ):
+                        sg_mol.AddBond(
+                            atom_map[begin_idx], atom_map[end_idx], bond.GetBondType()
+                        )
+
         # Get formula for this sgroup
         sg_formula = _get_frag_formula(sg_mol)
         if not sg_formula:
             continue
-            
+
         # Add label if present
-        label = ''
-        if sg.HasProp('LABEL'):
-            label = sg.GetProp('LABEL')
-        
+        label = ""
+        if sg.HasProp("LABEL"):
+            label = sg.GetProp("LABEL")
+
         formula = f"({sg_formula}){label}"
         formulas.append(formula)
-    
+
     # Second pass - collect all remaining atoms into a single molecule
     remaining_mol = Chem.RWMol()
     atom_map = {}
-    
+
     for i in range(mol.GetNumAtoms()):
         if i not in processed_atoms:
             atom = mol.GetAtomWithIdx(i)
             new_idx = remaining_mol.AddAtom(atom)
             atom_map[i] = new_idx
-            
+
     for i in range(mol.GetNumBonds()):
         bond = mol.GetBondWithIdx(i)
         begin_idx = bond.GetBeginAtomIdx()
         end_idx = bond.GetEndAtomIdx()
         if begin_idx in atom_map and end_idx in atom_map:
-            remaining_mol.AddBond(atom_map[begin_idx], atom_map[end_idx], bond.GetBondType())
-    
+            remaining_mol.AddBond(
+                atom_map[begin_idx], atom_map[end_idx], bond.GetBondType()
+            )
+
     # Get formula for remaining atoms if any
     if remaining_mol.GetNumAtoms() > 0:
         remaining_formula = _get_frag_formula(remaining_mol)
         if remaining_formula:
             formulas.append(remaining_formula)
-    
+
     if not formulas:
         return None
-        
+
     return ".".join(formulas)
-
-
-def get_conn_atoms(mol, atom_idx):
-    connected_atoms = set()
-    queue = [atom_idx]
-    visited = set()
-
-    while queue:
-        current_atom_idx = queue.pop(0)
-        if current_atom_idx not in visited:
-            visited.add(current_atom_idx)
-            connected_atoms.add(current_atom_idx)
-            neighbors = mol.GetAtomWithIdx(current_atom_idx).GetNeighbors()
-            for neighbor in neighbors:
-                neighbor_idx = neighbor.GetIdx()
-                if neighbor_idx not in visited:
-                    queue.append(neighbor_idx)
-    return connected_atoms
-
-
-def validate_formula(formula):
-    periodic_table = Chem.GetPeriodicTable()
-    matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
-    incorrect_elements = []
-    for idx in range(len(matches)):
-
-        # skip R groups
-        if matches[idx] == "R":
-            continue
-
-        if matches[idx].isnumeric():
-            continue
-
-        try:
-            periodic_table.GetAtomicNumber(matches[idx])
-        except RuntimeError as e:
-            incorrect_elements.append(matches[idx])
-    return incorrect_elements
-    
-
-def get_mass_from_formula(formula, average=True):
-    """
-    average=True: avg mass
-    average=False: monoisotopic mass
-    """
-    periodic_table = Chem.GetPeriodicTable()
-    matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
-    mass = 0
-    for idx in range(len(matches)):
-
-        # skip R groups
-        if matches[idx] == "R":
-            continue
-
-        if matches[idx].isnumeric():
-            continue
-
-        mult = (
-            int(matches[idx + 1])
-            if len(matches) > idx + 1 and matches[idx + 1].isnumeric()
-            else 1
-        )
-        if average:
-            func = periodic_table.GetAtomicWeight
-        else:
-            func = periodic_table.GetMostCommonIsotopeMass
-        
-        try:
-            elem_mass = func(matches[idx])
-        except RuntimeError as e:
-            return None
-
-        mass += elem_mass * mult
-    return mass
