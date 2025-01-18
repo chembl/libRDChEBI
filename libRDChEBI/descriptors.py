@@ -4,7 +4,7 @@ from chembl_structure_pipeline.standardizer import (
 )
 from rdkit.Chem import Descriptors, Mol, Atom
 from rdkit import Chem
-from typing import Dict, Optional, Union
+from typing import Optional
 import re
 
 polymer_regex = re.compile(
