@@ -1,6 +1,6 @@
-[![CI Testing](https://github.com/chembl/cbl_migrator/workflows/CI/badge.svg)](https://github.com/chembl/cbl_migrator/actions?query=workflow%3ACI+branch%3Amain)
-[![Latest Version](https://img.shields.io/pypi/v/cbl_migrator.svg)](https://pypi.python.org/pypi/cbl_migrator/)
-[![Supported Python versions](https://img.shields.io/pypi/pyversions/cbl_migrator.svg)](https://pypi.python.org/pypi/cbl_migrator/)
+[![CI Testing](https://github.com/chembl/libRDChEBI/workflows/CI/badge.svg)](https://github.com/chembl/libRDChEBI/actions?query=workflow%3ACI+branch%3Amain)
+[![Latest Version](https://img.shields.io/pypi/v/libRDChEBI.svg)](https://pypi.python.org/pypi/libRDChEBI/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/libRDChEBI.svg)](https://pypi.python.org/pypi/libRDChEBI/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # libRDChEBI
