@@ -188,15 +188,13 @@ def get_polymer_formula(molfile):
     formulas = []
     processed_atoms = set()
     
-    # First pass - process all defined sgroups
-    has_sru = any(sg.HasProp('TYPE') and sg.GetProp('TYPE') == 'SRU' for sg in sgroups)
-    
+    # First pass - process all defined sgroups    
     for sg in sgroups:
         if not sg.HasProp('TYPE'):
             continue
             
         sg_type = sg.GetProp('TYPE')
-        if sg_type not in ('SRU', 'MON', 'COP', 'CRO', 'ANY'):
+        if sg_type in ("SUP", "MUL"):
             continue
             
         sg_atoms = set(sg.GetAtoms())
@@ -236,10 +234,6 @@ def get_polymer_formula(molfile):
         label = ''
         if sg.HasProp('LABEL'):
             label = sg.GetProp('LABEL')
-        elif sg_type == 'SRU' and not has_sru:  # Only add 'n' if this is the only SRU
-            label = 'n'
-        elif sg_type == 'COP':
-            label = 'ran'
         
         formula = f"({sg_formula}){label}"
         formulas.append(formula)
