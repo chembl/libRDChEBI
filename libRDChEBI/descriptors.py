@@ -214,40 +214,6 @@ def has_dummy_atom(molfile: str) -> bool:
     return False
 
 
-def _create_or_add_one(dictionary: Dict, key: str) -> Dict:
-    """
-    Increment value for key in dictionary, creating key if it doesn't exist.
-
-    Args:
-        dictionary (dict): Dictionary to modify
-        key: Dictionary key
-
-    Returns:
-        dict: Modified dictionary
-    """
-    dictionary[key] = dictionary.get(key, 0) + 1
-    return dictionary
-
-
-def _create_or_add_one_nested(
-    dictionary: Dict, key1: str, key2: Union[str, int]
-) -> Dict:
-    """
-    Increment value in nested dictionary, creating keys if they don't exist.
-
-    Args:
-        dictionary (dict): Dictionary to modify
-        key1: Outer dictionary key
-        key2: Inner dictionary key
-
-    Returns:
-        dict: Modified dictionary
-    """
-    dictionary[key1] = dictionary.get(key1, {})
-    dictionary[key1][key2] = dictionary[key1].get(key2, 0) + 1
-    return dictionary
-
-
 def _get_frag_formula(mol: Mol) -> str:
     """
     Generate molecular formula for a molecule fragment.
@@ -262,72 +228,62 @@ def _get_frag_formula(mol: Mol) -> str:
     atoms_dict = {}
     isotopes_dict = {}
     hs = 0
+
+    # Count atoms and handle special cases
     for at in mol.GetAtoms():
-        # R groups can show isotopes(!) if numbered (e.g. R1, R2...)
-        # so we want to exclude isotopes with AtomicNum=0 here
-        # Deuterium and Tritium are a special case so skipping H here
-        if at.GetIsotope() and at.GetAtomicNum() != 0 and at.GetSymbol() != "H":
-            isotopes_dict = _create_or_add_one_nested(
-                isotopes_dict, at.GetSymbol(), at.GetIsotope()
-            )
+        symbol = at.GetSymbol()
+        isotope = at.GetIsotope()
+
+        if isotope and at.GetAtomicNum() != 0 and symbol != "H":
+            isotopes_dict.setdefault(symbol, {})
+            isotopes_dict[symbol][isotope] = isotopes_dict[symbol].get(isotope, 0) + 1
         else:
             if atom_is_r_group(at):
-                atoms_dict = _create_or_add_one(atoms_dict, "R")
-            elif at.GetSymbol() == "H":
-                if at.GetIsotope() == 2:  # Deuterium
-                    atoms_dict = _create_or_add_one(atoms_dict, "D")
-                elif at.GetIsotope() == 3:  # Tritium
-                    atoms_dict = _create_or_add_one(atoms_dict, "T")
+                atoms_dict["R"] = atoms_dict.get("R", 0) + 1
+            elif symbol == "H":
+                if isotope == 2:
+                    atoms_dict["D"] = atoms_dict.get("D", 0) + 1
+                elif isotope == 3:
+                    atoms_dict["T"] = atoms_dict.get("T", 0) + 1
                 else:
                     hs += 1
-            # capture Reaxys generics
-            elif at.GetSymbol() == "*" and at.GetQueryType():
-                atoms_dict = _create_or_add_one(atoms_dict, at.GetQueryType())
+            elif symbol == "*" and at.GetQueryType():
+                atoms_dict[at.GetQueryType()] = atoms_dict.get(at.GetQueryType(), 0) + 1
             else:
-                atoms_dict = _create_or_add_one(atoms_dict, at.GetSymbol())
+                atoms_dict[symbol] = atoms_dict.get(symbol, 0) + 1
+
         hs += at.GetTotalNumHs(includeNeighbors=False)
 
     if hs > 0:
         atoms_dict["H"] = hs
 
-    # '*' represent fragments (attaches to something)
-    # and do not appear in molecular formula in ChEBI
-    if atoms_dict.get("*"):
-        del atoms_dict["*"]
+    # Remove dummy atoms
+    atoms_dict.pop("*", None)
 
-    # don't show the number of atoms if count is 1
-    atom_str_counts = lambda x: f"{x}" if atoms_dict[x] == 1 else f"{x}{atoms_dict[x]}"
-
-    # R represents a class of compounds (something attaches here)
-    # it appears in the molecular formula
-    rs = ""
-    if atoms_dict.get("R"):
-        rs = atom_str_counts("R")
-        del atoms_dict["R"]
-
-    # Hill System Order:
-    # Carbon first, Hydrogen second, and all remaining elements, including Deuterium and Tritium, in alphabetical order
-    pse = Chem.GetPeriodicTable()
-    els = list(
-        filter(
-            lambda x: x not in ("H", "C"),
-            [pse.GetElementSymbol(i) for i in range(1, 119)],
-        )
+    # Handle R groups
+    r_part = (
+        f"R{atoms_dict['R']}"
+        if "R" in atoms_dict and atoms_dict["R"] > 1
+        else "R"
+        if "R" in atoms_dict
+        else ""
     )
-    elements_list = ["C", "H"] + sorted(els + ["D", "T"]) + ["A", "M", "X"]
+    atoms_dict.pop("R", None)
 
-    molecular_formula = ""
-    for elem in elements_list:
-        if atoms_dict.get(elem):
-            molecular_formula += atom_str_counts(elem)
-        if isotopes_dict.get(elem):
-            for iso in sorted(isotopes_dict[elem].keys()):
-                if isotopes_dict[elem][iso] == 1:
-                    molecular_formula += f"[{iso}{elem}]"
-                else:
-                    molecular_formula += f"[{iso}{elem}{isotopes_dict[elem][iso]}]"
-    molecular_formula = molecular_formula + rs
-    return molecular_formula
+    # Build formula string following Hill notation
+    elements = ["C", "H"] + sorted(set(atoms_dict.keys()) - {"C", "H"})
+    formula = ""
+
+    for elem in elements:
+        if elem in atoms_dict:
+            count = atoms_dict[elem]
+            formula += elem if count == 1 else f"{elem}{count}"
+
+        if elem in isotopes_dict:
+            for iso, count in sorted(isotopes_dict[elem].items()):
+                formula += f"[{iso}{elem}]" if count == 1 else f"[{iso}{elem}{count}]"
+
+    return formula + r_part
 
 
 def _get_small_molecule_formula(molfile: str) -> str:
