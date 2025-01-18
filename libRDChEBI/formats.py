@@ -2,7 +2,16 @@ from chembl_structure_pipeline.standardizer import parse_molblock, update_mol_va
 from rdkit import Chem
 
 
-def get_smiles(molfile):
+def get_smiles(molfile: str) -> str:
+    """
+    Convert a molecule from molfile format to SMILES notation.
+
+    Args:
+        molfile (str): The molecule structure in molfile format
+
+    Returns:
+        str: The molecule structure in SMILES notation
+    """
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
     Chem.SanitizeMol(
