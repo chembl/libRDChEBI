@@ -184,57 +184,92 @@ def get_monoisotopic_mass(molfile):
 def get_polymer_formula(molfile):
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
-    rwmol = Chem.RWMol(mol)
+    sgroups = Chem.GetMolSubstanceGroups(mol)
     formulas = []
-    atoms_to_remove = []
-
-    for sg in Chem.GetMolSubstanceGroups(rwmol):
-        sg_props = sg.GetPropsAsDict()
-        if sg_props["TYPE"] in ("SUP", "MUL"):
+    processed_atoms = set()
+    
+    # First pass - process all defined sgroups
+    has_sru = any(sg.HasProp('TYPE') and sg.GetProp('TYPE') == 'SRU' for sg in sgroups)
+    
+    for sg in sgroups:
+        if not sg.HasProp('TYPE'):
             continue
-
-        atoms_in_sgroup = [at_idx for at_idx in sg.GetAtoms()]
-        atoms_to_remove += atoms_in_sgroup
-        sg_sub_mol = Chem.RWMol()
-
-        for at_idx in atoms_in_sgroup:
-            atom = rwmol.GetAtomWithIdx(at_idx)
-            sg_sub_mol.AddAtom(atom)
-
-        sg_formula = _get_frag_formula(sg_sub_mol)
-        conn_atoms = get_conn_atoms(rwmol, atoms_in_sgroup[0])
-        remain_formula = ""
-
-        if len(conn_atoms) > len(atoms_in_sgroup):
-            sub_mol_conn = Chem.RWMol()
-            for at_idx in set(conn_atoms) - set(atoms_in_sgroup):
-                atom = rwmol.GetAtomWithIdx(at_idx)
-                for ssg in Chem.GetMolSubstanceGroups(rwmol):
-                    index = int(sg_props["index"])
-                    if int(ssg.GetProp("index")) == index:
+            
+        sg_type = sg.GetProp('TYPE')
+        if sg_type not in ('SRU', 'MON', 'COP', 'CRO', 'ANY'):
+            continue
+            
+        sg_atoms = set(sg.GetAtoms())
+        if not sg_atoms:
+            continue
+            
+        # Create submolecule for this sgroup
+        sg_mol = Chem.RWMol()
+        atom_map = {}
+        
+        for at_idx in sg_atoms:
+            if at_idx in processed_atoms:
+                continue
+            atom = mol.GetAtomWithIdx(at_idx)
+            new_idx = sg_mol.AddAtom(atom)
+            atom_map[at_idx] = new_idx
+            processed_atoms.add(at_idx)
+            
+        # Add bonds between atoms in this sgroup
+        for at_idx in sg_atoms:
+            atom = mol.GetAtomWithIdx(at_idx)
+            for bond in atom.GetBonds():
+                begin_idx = bond.GetBeginAtomIdx()
+                end_idx = bond.GetEndAtomIdx()
+                if begin_idx in sg_atoms and end_idx in sg_atoms:
+                    if begin_idx not in atom_map or end_idx not in atom_map:
                         continue
-                    if at_idx not in ssg.GetAtoms():
-                        sub_mol_conn.AddAtom(atom)
-                atoms_to_remove.append(at_idx)
-            remain_formula = _get_frag_formula(sub_mol_conn)
-
-        label = sg.GetProp("LABEL") if sg.HasProp("LABEL") else ""
-
-        if remain_formula:
-            formula = f"({sg_formula}){label}{remain_formula}"
-        else:
-            formula = f"({sg_formula}){label}"
+                    if not sg_mol.GetBondBetweenAtoms(atom_map[begin_idx], atom_map[end_idx]):
+                        sg_mol.AddBond(atom_map[begin_idx], atom_map[end_idx], bond.GetBondType())
+        
+        # Get formula for this sgroup
+        sg_formula = _get_frag_formula(sg_mol)
+        if not sg_formula:
+            continue
+            
+        # Add label if present
+        label = ''
+        if sg.HasProp('LABEL'):
+            label = sg.GetProp('LABEL')
+        elif sg_type == 'SRU' and not has_sru:  # Only add 'n' if this is the only SRU
+            label = 'n'
+        elif sg_type == 'COP':
+            label = 'ran'
+        
+        formula = f"({sg_formula}){label}"
         formulas.append(formula)
-
-    rwmol.BeginBatchEdit()
-    for atm in set(atoms_to_remove):
-        rwmol.RemoveAtom(atm)
-    rwmol.CommitBatchEdit()
-
-    frags = Chem.GetMolFrags(rwmol, asMols=True, sanitizeFrags=False)
-    remain_formulas = [_get_frag_formula(frag) for frag in frags]
-    if remain_formulas:
-        formulas += remain_formulas
+    
+    # Second pass - collect all remaining atoms into a single molecule
+    remaining_mol = Chem.RWMol()
+    atom_map = {}
+    
+    for i in range(mol.GetNumAtoms()):
+        if i not in processed_atoms:
+            atom = mol.GetAtomWithIdx(i)
+            new_idx = remaining_mol.AddAtom(atom)
+            atom_map[i] = new_idx
+            
+    for i in range(mol.GetNumBonds()):
+        bond = mol.GetBondWithIdx(i)
+        begin_idx = bond.GetBeginAtomIdx()
+        end_idx = bond.GetEndAtomIdx()
+        if begin_idx in atom_map and end_idx in atom_map:
+            remaining_mol.AddBond(atom_map[begin_idx], atom_map[end_idx], bond.GetBondType())
+    
+    # Get formula for remaining atoms if any
+    if remaining_mol.GetNumAtoms() > 0:
+        remaining_formula = _get_frag_formula(remaining_mol)
+        if remaining_formula:
+            formulas.append(remaining_formula)
+    
+    if not formulas:
+        return None
+        
     return ".".join(formulas)
 
 
@@ -255,6 +290,26 @@ def get_conn_atoms(mol, atom_idx):
                     queue.append(neighbor_idx)
     return connected_atoms
 
+
+def validate_formula(formula):
+    periodic_table = Chem.GetPeriodicTable()
+    matches = re.findall("[A-Z][a-z]?|[0-9]+", formula)
+    incorrect_elements = []
+    for idx in range(len(matches)):
+
+        # skip R groups
+        if matches[idx] == "R":
+            continue
+
+        if matches[idx].isnumeric():
+            continue
+
+        try:
+            periodic_table.GetAtomicNumber(matches[idx])
+        except RuntimeError as e:
+            incorrect_elements.append(matches[idx])
+    return incorrect_elements
+    
 
 def get_mass_from_formula(formula, average=True):
     """
@@ -279,8 +334,14 @@ def get_mass_from_formula(formula, average=True):
             else 1
         )
         if average:
-            elem_mass = periodic_table.GetAtomicWeight(matches[idx])
+            func = periodic_table.GetAtomicWeight
         else:
-            elem_mass = periodic_table.GetMostCommonIsotopeMass(matches[idx])
+            func = periodic_table.GetMostCommonIsotopeMass
+        
+        try:
+            elem_mass = func(matches[idx])
+        except RuntimeError as e:
+            return None
+
         mass += elem_mass * mult
     return mass

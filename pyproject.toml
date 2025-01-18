@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "libRDChEBI"
+version = "0.3.0"
+authors = [
+    {name = "Eloy Félix", email = "chebi-help@ebi.ac.uk"},
+]
+description = "RDKit library to deal with ChEBI's chemistry"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "chembl_structure_pipeline~=1.2.0",
+    "rdkit>=2023.09.4",
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/chembl/libRDChEBI"
