@@ -36,7 +36,7 @@ def get_molformula(molfile: str) -> Optional[str]:
         molfile (str): MOL file content as string
 
     Returns:
-        str: Molecular formula following Hill notation, or None if unable to generate
+        str: Molecular formula or None if unable to generate
     """
     if is_polymer(molfile):
         return _get_polymer_formula(molfile)
@@ -100,7 +100,7 @@ def get_mass_from_formula(formula: str, average: bool = True) -> Optional[float]
     Calculate molecular mass from a molecular formula string.
 
     Args:
-        formula (str): Molecular formula in Hill notation
+        formula (str): Molecular formula
         average (bool): If True, calculate average mass; if False, calculate monoisotopic mass
 
     Returns:
@@ -223,7 +223,7 @@ def _get_frag_formula(mol: Mol) -> str:
         mol (rdkit.Chem.Mol): RDKit molecule object
 
     Returns:
-        str: Molecular formula following Hill notation
+        str: Molecular formula
     """
     atoms_dict = {}
     isotopes_dict = {}
@@ -295,7 +295,7 @@ def _get_small_molecule_formula(molfile: str) -> str:
         molfile (str): MOL file content as string
 
     Returns:
-        str: Molecular formula following Hill notation, fragments separated by dots
+        str: Molecular formula following, fragments separated by dots
     """
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
@@ -315,7 +315,7 @@ def _get_polymer_formula(molfile: str) -> Optional[str]:
         molfile (str): MOL file content as string
 
     Returns:
-        str: Molecular formula following Hill notation with substance group labeling, or None if fails
+        str: Molecular formula with substance group labeling, or None if fails
     """
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
