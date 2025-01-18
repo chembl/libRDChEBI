@@ -295,7 +295,7 @@ def _get_small_molecule_formula(molfile: str) -> str:
         molfile (str): MOL file content as string
 
     Returns:
-        str: Molecular formula following, fragments separated by dots
+        str: Molecular formula fragments separated by dots
     """
     mol = parse_molblock(molfile)
     mol = update_mol_valences(mol)
