@@ -5,4 +5,4 @@
 
 # libRDChEBI
 
-RDKit-based library implementing the chemistry-related functionality of the new [ChEBI](https://wwwdev.ebi.ac.uk/chebi/alpha/) development.
+RDKit-based library implementing chemistry-related functions used in the development of the new [ChEBI](https://wwwdev.ebi.ac.uk/chebi/alpha/) platform, providing functionality similar to the existing ChEBI system.
