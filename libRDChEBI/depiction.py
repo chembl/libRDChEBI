@@ -13,6 +13,7 @@ def depict(
     molfile: str,
     width: int = 300,
     height: int = 300,
+    output_format: str = "svg",
     baseFontSize: float = -1,
     fixedFontSize: float = -1,
     minFontSize: float = -1,
@@ -23,13 +24,14 @@ def depict(
     addStereoAnnotation: bool = True,
     useMolBlockWedging: bool = True,
     atomLabelDeuteriumTritium: bool = True,
-) -> Optional[str]:
-    """Generate an SVG depiction of a molecule from a molfile.
+) -> Optional[bytes | str]:
+    """Generate an SVG or PNG depiction of a molecule from a molfile.
 
     Args:
         molfile: A string containing the molecule data in molfile format
-        width: Width of the output SVG in pixels
-        height: Height of the output SVG in pixels
+        width: Width of the output image in pixels
+        height: Height of the output image in pixels
+        output_format: Output format, either 'svg' or 'png'
         baseFontSize: Base font size for atom labels (-1 for auto)
         fixedFontSize: Fixed font size for all labels (-1 for variable)
         minFontSize: Minimum font size for atom labels (-1 for no limit)
@@ -42,8 +44,11 @@ def depict(
         atomLabelDeuteriumTritium: Show D and T labels for deuterium/tritium
 
     Returns:
-        An SVG string representation of the molecule or None if parsing fails
+        An SVG string or PNG bytes representation of the molecule, or None if parsing fails
     """
+    if output_format.lower() not in ["svg", "png"]:
+        raise ValueError("Output format must be either 'svg' or 'png'")
+
     mol = parse_molblock(molfile)
     if not mol:
         return None
@@ -72,7 +77,8 @@ def depict(
                 if at.GetIdx() in sg[0]:
                     at.SetProp("_displayLabel", sg[1])
 
-    draw = rdMolDraw2D.MolDraw2DSVG(width, height)
+    drawer_class = rdMolDraw2D.MolDraw2DSVG if output_format.lower() == "svg" else rdMolDraw2D.MolDraw2DCairo
+    draw = drawer_class(width, height)
     draw_options = draw.drawOptions()
     draw_options.baseFontSize = baseFontSize
     draw_options.fixedFontSize = fixedFontSize
@@ -86,8 +92,7 @@ def depict(
     draw_options.atomLabelDeuteriumTritium = atomLabelDeuteriumTritium
     draw.DrawMolecule(mol)
     draw.FinishDrawing()
-    svg: str = draw.GetDrawingText()
-    return svg
+    return draw.GetDrawingText()
 
 
 def depict_indigo(molfile, height=300, width=300, output_format="png"):
