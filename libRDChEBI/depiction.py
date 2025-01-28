@@ -2,6 +2,11 @@ from typing import Optional, List, Tuple
 from chembl_structure_pipeline.standardizer import parse_molblock
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit import Chem
+from indigo.renderer import IndigoRenderer
+from indigo import Indigo
+
+indigo = Indigo()
+renderer = IndigoRenderer(indigo)
 
 
 def depict(
@@ -83,3 +88,26 @@ def depict(
     draw.FinishDrawing()
     svg: str = draw.GetDrawingText()
     return svg
+
+
+def depict_indigo(molfile, height=300, width=300, output_format="png"):
+    if output_format.lower() not in ["svg", "png"]:
+        raise ValueError("Output format must be either 'svg' or 'png'")
+
+    indigo.setOption("render-image-width", width)
+    indigo.setOption("render-image-height", height)
+    indigo.setOption("render-implicit-hydrogens-visible", True)
+    indigo.setOption("render-coloring", True)
+    indigo.setOption("render-background-color", "1, 1, 1")
+    indigo.setOption("render-output-format", output_format.lower())
+
+    try:
+        mol = indigo.loadMolecule(molfile)
+        buffer = renderer.renderToBuffer(mol)
+
+        if output_format.lower() == "svg":
+            return buffer.decode("utf-8")
+        else:  # PNG
+            return buffer
+    except Exception as e:
+        raise Exception(f"Error processing molecule: {str(e)}")
