@@ -105,6 +105,7 @@ def depict_indigo(molfile, height=300, width=300, output_format="png"):
     indigo.setOption("render-coloring", True)
     indigo.setOption("render-background-color", "1, 1, 1")
     indigo.setOption("render-output-format", output_format.lower())
+    indigo.setOption("render-stereo-style", "none")
 
     try:
         mol = indigo.loadMolecule(molfile)
