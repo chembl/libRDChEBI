@@ -111,6 +111,8 @@ def depict_indigo(molfile, height=300, width=300, output_format="png", transbg=F
     indigo.setOption("render-coloring", True)
     if not transbg:
         indigo.setOption("render-background-color", "1, 1, 1")
+    else:
+        indigo.setOption("render-background-color", "-1, -1, -1")
     indigo.setOption("render-output-format", output_format.lower())
     indigo.setOption("render-stereo-style", "none")
 
