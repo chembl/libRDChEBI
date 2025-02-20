@@ -109,9 +109,7 @@ def depict_indigo(molfile, height=300, width=300, output_format="png", transbg=F
     indigo.setOption("render-image-height", height)
     indigo.setOption("render-implicit-hydrogens-visible", True)
     indigo.setOption("render-coloring", True)
-    if transbg:
-        indigo.setOption("render-background-color", "0, 0, 0, 0")
-    else:
+    if not transbg:
         indigo.setOption("render-background-color", "1, 1, 1")
     indigo.setOption("render-output-format", output_format.lower())
     indigo.setOption("render-stereo-style", "none")
