@@ -77,7 +77,11 @@ def depict(
                 if at.GetIdx() in sg[0]:
                     at.SetProp("_displayLabel", sg[1])
 
-    drawer_class = rdMolDraw2D.MolDraw2DSVG if output_format.lower() == "svg" else rdMolDraw2D.MolDraw2DCairo
+    drawer_class = (
+        rdMolDraw2D.MolDraw2DSVG
+        if output_format.lower() == "svg"
+        else rdMolDraw2D.MolDraw2DCairo
+    )
     draw = drawer_class(width, height)
     draw_options = draw.drawOptions()
     draw_options.baseFontSize = baseFontSize
@@ -95,15 +99,20 @@ def depict(
     return draw.GetDrawingText()
 
 
-def depict_indigo(molfile, height=300, width=300, output_format="png"):
+def depict_indigo(molfile, height=300, width=300, output_format="png", transbg=False):
     if output_format.lower() not in ["svg", "png"]:
         raise ValueError("Output format must be either 'svg' or 'png'")
+
+    indigo.setOption("ignore-stereochemistry-errors", True)
 
     indigo.setOption("render-image-width", width)
     indigo.setOption("render-image-height", height)
     indigo.setOption("render-implicit-hydrogens-visible", True)
     indigo.setOption("render-coloring", True)
-    indigo.setOption("render-background-color", "1, 1, 1")
+    if transbg:
+        indigo.setOption("render-background-color", "0, 0, 0, 0")
+    else:
+        indigo.setOption("render-background-color", "1, 1, 1")
     indigo.setOption("render-output-format", output_format.lower())
     indigo.setOption("render-stereo-style", "none")
 
