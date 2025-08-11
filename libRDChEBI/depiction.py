@@ -64,6 +64,12 @@ def depict(
 
     for at in mol.GetAtoms():
         dlabel = at.GetSymbol()
+
+        # set display label for subatomic particles and special symbols like ACP coming from molfile aliases
+        # chebis: 10545 76516
+        if at.HasProp("molFileAlias"):
+            at.SetProp("_displayLabel", at.GetProp("molFileAlias"))
+
         # ChEBI doesn't like to show '#'
         # nor superindices in numbered R groups
         if at.GetAtomicNum() == 0 and len(dlabel) > 1 and dlabel[0] == "R":

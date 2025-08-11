@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "libRDChEBI"
-version = "0.3.7"
+version = "0.3.8"
 authors = [
     {name = "Eloy Félix", email = "chebi-help@ebi.ac.uk"},
 ]
