@@ -14,7 +14,7 @@ license = {text = "MIT"}
 requires-python = ">=3.9"
 dependencies = [
     "chembl_structure_pipeline~=1.2.0",
-    "rdkit>=2023.09.4",
+    "rdkit==2025.3.5",
     "epam-indigo==1.26.0"
 ]
 classifiers = [
