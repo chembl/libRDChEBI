@@ -53,6 +53,8 @@ def depict(
     if not mol:
         return None
 
+    mol = Chem.RemoveHs(mol, implicitOnly=True, updateExplicitCount=True)
+
     sgs_single_atom: List[Tuple[List[int], str]] = []
     for sg in Chem.GetMolSubstanceGroups(mol):
         sg_props = sg.GetPropsAsDict()
@@ -90,6 +92,10 @@ def depict(
     )
     draw = drawer_class(width, height)
     draw_options = draw.drawOptions()
+    
+    # Prevent RDKit from preparing again
+    draw_options.prepareMolsBeforeDrawing = False
+    
     draw_options.baseFontSize = baseFontSize
     draw_options.fixedFontSize = fixedFontSize
     draw_options.useCDKAtomPalette = useCDKAtomPalette
